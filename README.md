@@ -1,16 +1,26 @@
-# React + Vite
+<p align="center">
+  <img src="./public/KickZone.png" alt="KickZone" width="420" />
+</p>
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+<h1 align="center">Kickzone Shoe (คิ๊กโซน)</h1>
+<p align="center"><b>ระบบเว็บไซต์ร้านค้าออนไลน์สำหรับจัดจำหน่ายรองเท้ากีฬา</b></p>
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## โครงงานนี้คืออะไร
 
-## React Compiler
+**Kick Zone (คิ๊กโซน)** ระบบเว็บไซต์ร้านค้าออนไลน์สำหรับจัดจำหน่ายรองเท้า
+โดยระบบสามารถทำงานได้จริงทั้งหน้าบ้านและหลังบ้าน รองรับระบบสมาชิก มีระบบตะกร้าสินค้าและการสั่งซื้อสำหรับลูกค้าทั่วไป และมีระบบหลังบ้าน (Admin Dashboard) สำหรับให้แอดมินจัดการสินค้า (เพิ่ม ลด แก้ไข) และจัดการสถานะคำสั่งซื้อได้
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+จัดทำในรายวิชา **CSI204 - ดิจิทัลแพลตฟอร์มสำหรับพัฒนาซอฟต์แวร์**
 
-## Expanding the ESLint configuration
+**ทีมผู้จัดทำ**
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+| ลำดับ | รหัสนักศึกษา | ชื่อ-นามสกุล | ตำแหน่ง |
+|:----:|:------------:|--------------|---------|
+| 1 | 67103899 | กิตตินันท์ ภิญโญ | Project Manager |
+| 2 | 67103882 | ธนวิศิษฏิ์ อินต๊ะแสน | Developer (Fullstack) |
+| 3 | 67110583 | วรัท ชื่นไชยชาญ | Developer (Fullstack) |
+| 4 | 67114425 | วุฒิเมศร์ พงศ์วราทวีพร | Developer (Fullstack) |
+
+---
