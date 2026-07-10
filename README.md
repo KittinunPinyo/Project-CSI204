@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/KickZone.png" alt="KickZone" width="420" />
+  <img src="./docs/KickZone.png" alt="KickZone" width="420" />
 </p>
 
 <h1 align="center">Kickzone Shoe (คิ๊กโซน)</h1>

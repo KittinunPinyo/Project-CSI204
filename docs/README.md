@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/KickZone.png" alt="KickZone" width="420" />
+  <img src="./docs/KickZone.png" alt="KickZone" width="420" />
 </p>
 
 <h1 align="center">Kickzone Shoe (คิ๊กโซน)</h1>
@@ -96,4 +96,4 @@
 
 ---
 
-<p align="center"><sub>© 2026 KickZone (คิ๊กโซน) · โครงงานรายวิชา CSI204</sub></p>
+<p align="center"><sub>© 2026 KickZone (คิ๊กโซน) · โครงงานรายวิชา CSI204</sub></p>docs
