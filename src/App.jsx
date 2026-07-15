@@ -13,35 +13,36 @@ import Profile from './pages/Profile';
 export default function App() {
   const navigate = useNavigate();
 
-  // ====================================================
-  // 🌟 ดึงข้อมูล User จากระบบ Login ใหม่
-  // ====================================================
   const [currentUser, setCurrentUser] = useState(() => {
-    // ไปดึงกุญแจชื่อ 'user' ที่ Navbar กับ Login ใช้
     const savedUser = localStorage.getItem("user");
-    // ถ้ามีข้อมูล ให้แกะเอาแค่ role (เช่น 'customer' หรือ 'admin') ไปใช้งาน
     return savedUser ? JSON.parse(savedUser).role : null; 
   });
 
-  // ข้อมูลตะกร้าและสินค้าที่สนใจ
   const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem("cart")) || []);
   const [wishlist, setWishlist] = useState(() => JSON.parse(localStorage.getItem("wishlist")) || []);
-  
   const [searchQuery, setSearchQuery] = useState("");
-  const [newProduct, setNewProduct] = useState({ name: "", brand: "", price: "", image: "" });
+  
+  // 🔴 ปรับ State เริ่มต้นให้รองรับฟิลด์ใหม่ทั้งหมด
+  const [newProduct, setNewProduct] = useState({ 
+    name: "", brand: "", price: "", image: "", 
+    sku: "", color: "", releaseDate: "", stock: {} 
+  });
 
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]); 
 
-  // ====================================================
-  // 🌟 ดึงข้อมูลเริ่มต้น (Products & Orders)
-  // ====================================================
   useEffect(() => {
     const fetchData = async () => {
       try {
         const prodRes = await fetch('http://localhost:5000/api/products');
         const prodData = await prodRes.json();
-        setProducts(prodData.map(p => ({ ...p, id: p.id.toString(), price: Number(p.price) })));
+        setProducts(prodData.map(p => ({ 
+          ...p, 
+          id: p.id.toString(), 
+          price: Number(p.price),
+          // ตรวจสอบว่า stock เป็น Object หรือยัง
+          stock: typeof p.stock === 'string' ? JSON.parse(p.stock) : (p.stock || {})
+        })));
 
         const ordRes = await fetch('http://localhost:5000/api/orders');
         const ordData = await ordRes.json();
@@ -51,46 +52,70 @@ export default function App() {
     fetchData();
   }, []);
 
-  // ====================================================
-  // 🌟 ฟังก์ชันจัดการสินค้า (CRUD)
-  // ====================================================
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
+  // 🟢 ฟังก์ชันเพิ่มสินค้า (ส่งข้อมูลครบทุกฟิลด์)
   const handleAddProduct = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newProduct) });
-      const added = await res.json();
-      setProducts([{...added, id: added.id.toString(), price: Number(added.price)}, ...products]);
-      setNewProduct({ name: "", brand: "", price: "", image: "" });
+      const res = await fetch('http://localhost:5000/api/products', { 
+        method: 'POST', 
+        headers: getAuthHeaders(), 
+        body: JSON.stringify(newProduct) 
+      });
+      if (!res.ok) throw new Error("เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
+      
+      const data = await res.json();
+      const added = data.product; 
+
+      setProducts([{...added, id: added.id.toString(), price: Number(added.price), stock: added.stock}, ...products]);
       alert("เพิ่มสินค้าสำเร็จ!");
-    } catch (err) { alert("เกิดข้อผิดพลาด"); }
+    } catch (err) { 
+      console.error(err);
+      alert("เกิดข้อผิดพลาดในการเพิ่มสินค้า"); 
+    }
   };
 
+  // 🟢 ฟังก์ชันแก้ไขสินค้า (ส่งข้อมูลครบทุกฟิลด์)
   const handleEditProduct = async (updatedProduct) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/products/${updatedProduct.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedProduct) });
+      const res = await fetch(`http://localhost:5000/api/products/${updatedProduct.id}`, { 
+        method: 'PUT', 
+        headers: getAuthHeaders(), 
+        body: JSON.stringify(updatedProduct) 
+      });
+      if (!res.ok) throw new Error("เกิดข้อผิดพลาด");
+      
       const data = await res.json();
-      setProducts(products.map(p => p.id === updatedProduct.id ? {...data, id: data.id.toString(), price: Number(data.price)} : p));
+      setProducts(products.map(p => p.id === updatedProduct.id ? {...data, id: data.id.toString(), price: Number(data.price), stock: data.stock} : p));
       alert("อัปเดตข้อมูลสำเร็จ!");
-    } catch (err) { alert("เกิดข้อผิดพลาด"); }
+    } catch (err) { 
+      console.error(err);
+      alert("เกิดข้อผิดพลาดในการแก้ไขสินค้า"); 
+    }
   };
 
   const handleDeleteProduct = async (id) => {
     if (window.confirm("ต้องการลบสินค้านี้ใช่หรือไม่?")) {
       try {
-        await fetch(`http://localhost:5000/api/products/${id}`, { method: 'DELETE' });
+        const res = await fetch(`http://localhost:5000/api/products/${id}`, { 
+          method: 'DELETE', 
+          headers: getAuthHeaders() 
+        });
+        if (!res.ok) throw new Error("เกิดข้อผิดพลาด");
         setProducts(products.filter(p => p.id !== id));
-        alert("ลบสินค้าสำเร็จ!");
-      } catch (err) { alert("เกิดข้อผิดพลาด"); }
+      } catch (err) { alert("เกิดข้อผิดพลาดในการลบสินค้า"); }
     }
   };
 
-  // ====================================================
-  // 🌟 ฟังก์ชันจัดการคำสั่งซื้อ (Orders)
-  // ====================================================
   const handleCheckout = async () => {
     if (cart.length === 0) return alert("ไม่มีสินค้าในตะกร้า!");
-    
-    // ดึงอีเมลจากระบบเก็บข้อมูลใหม่
     const savedUser = JSON.parse(localStorage.getItem("user") || "{}");
     const userEmail = savedUser.email || "customer@kickzone.com"; 
     
@@ -108,7 +133,7 @@ export default function App() {
       const savedOrder = await res.json();
       setOrders([savedOrder, ...orders]);
       setCart([]);
-      alert("ชำระเงินสำเร็จ บันทึกบิลลง Database แล้ว!");
+      alert("ชำระเงินสำเร็จ!");
       navigate('/profile');
     } catch (err) { alert("เกิดข้อผิดพลาดในการสั่งซื้อ"); }
   };
@@ -117,11 +142,9 @@ export default function App() {
     try {
       await fetch(`http://localhost:5000/api/orders/${orderId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
       setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-      alert("อัปเดตสถานะการจัดส่งเรียบร้อย! 📦");
     } catch (err) { alert("เกิดข้อผิดพลาดในการอัปเดตสถานะ"); }
   };
 
-  // LocalStorage Sync
   useEffect(() => { localStorage.setItem("cart", JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem("wishlist", JSON.stringify(wishlist)); }, [wishlist]);
 
@@ -136,16 +159,11 @@ export default function App() {
 
   return (
     <div className="min-vh-100 bg-white">
-      {/* เอา Props บางตัวที่ไม่ได้ใช้ออกจาก Navbar */}
       <Navbar searchQuery={searchQuery} setSearchQuery={setSearchQuery} cart={cart} />
-      
       <Routes>
         <Route path="/" element={<Home filteredProducts={filteredProducts} currentUser={currentUser} handleAddToCart={handleAddToCart} wishlist={wishlist} toggleWishlist={toggleWishlist} />} />
         <Route path="/product/:id" element={<ProductDetail products={products} currentUser={currentUser} handleAddToCart={handleAddToCart} />} />
-        
-        {/* ไม่ต้องส่ง handleLogin ไปแล้ว เพราะในไฟล์ Login.jsx จัดการตัวเองหมดแล้ว */}
         <Route path="/login" element={<Login />} />
-        
         <Route path="/register" element={<Register />} />
         <Route path="/cart" element={<Cart cart={cart} setCart={setCart} currentUser={currentUser} handleCheckout={handleCheckout} />} />
         <Route path="/profile" element={<Profile currentUser={currentUser} orders={orders} />} />

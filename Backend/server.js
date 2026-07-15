@@ -4,141 +4,112 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const jwt = require('jsonwebtoken'); // เพิ่ม JWT
-require('dotenv').config(); // สำหรับดึงค่าจากไฟล์ .env
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 const app = express();
 
 // ==========================================
-// 2. ตั้งค่า Middleware พื้นฐาน
+// 2. ตั้งค่า Middleware
 // ==========================================
 app.use(cors());
-app.use(express.json()); // ให้ Express อ่านข้อมูลแบบ JSON ได้
+app.use(express.json());
 
 // ==========================================
-// 3. ตั้งค่าการเชื่อมต่อฐานข้อมูล Neon (PostgreSQL)
+// 3. ตั้งค่าการเชื่อมต่อฐานข้อมูล
 // ==========================================
 const pool = new Pool({
-    // ดึงค่า DATABASE_URL จากไฟล์ .env (อย่าลืมสร้างไฟล์ .env และใส่ URL ของ Neon)
     connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    ssl: { rejectUnauthorized: false }
 });
 
-// คีย์ลับสำหรับสร้าง JWT (ในงานจริงควรเอาไปซ่อนในไฟล์ .env)
 const JWT_SECRET = 'KICKZONE_SECRET_KEY';
 
-// ==========================================
-// 4. Middleware: ยามเฝ้าประตูสำหรับตรวจ Token
-// ==========================================
+// Middleware ตรวจ Token
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    // หาค่า Token ที่ส่งมาในรูปแบบ "Bearer <token>"
     const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'ไม่พบ Token' });
 
-    if (!token) {
-        return res.status(401).json({ error: 'ไม่พบ Token กรุณาเข้าสู่ระบบ' });
-    }
-
-    // ตรวจสอบ Token
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({ error: 'Token ไม่ถูกต้อง หรือหมดอายุแล้ว' });
-        }
-        
-        // แนบข้อมูลผู้ใช้ (เช่น id, role) ไปกับ Request เพื่อให้ API ถัดไปใช้งาน
-        req.user = user; 
+        if (err) return res.status(403).json({ error: 'Token ไม่ถูกต้อง' });
+        req.user = user;
         next();
     });
 };
 
 // ==========================================
-// 5. API Routes (เส้นทางของระบบ)
+// 5. API Routes
 // ==========================================
 
-// 🟢 API: ล็อกอิน (Login) - สร้างและแจก Token
+// ล็อกอิน
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
-
     try {
-        // ค้นหาผู้ใช้จากฐานข้อมูล
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        
-        if (result.rows.length === 0) {
-            return res.status(401).json({ error: 'ไม่พบอีเมลนี้ในระบบ' });
+        if (result.rows.length === 0 || password !== result.rows[0].password) {
+            return res.status(401).json({ error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
         }
-
         const user = result.rows[0];
-
-        // ตรวจสอบรหัสผ่าน (ถ้ามีการใช้ bcrypt เข้ารหัสผ่าน ต้องใช้ bcrypt.compare ที่นี่)
-        if (password !== user.password) {
-            return res.status(401).json({ error: 'รหัสผ่านไม่ถูกต้อง' });
-        }
-
-        // เมื่อรหัสผ่านถูกต้อง -> สร้าง Payload ข้อมูล
-        const payload = {
-            id: user.id,
-            role: user.role, // 'admin' หรือ 'customer'
-            email: user.email
-        };
-
-        // สร้าง Token (กำหนดหมดอายุใน 1 วัน)
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
-
-        // ส่ง Token กลับไปให้ Frontend
-        res.json({
-            message: 'เข้าสู่ระบบสำเร็จ',
-            token: token, 
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            }
-        });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' });
-    }
+        const token = jwt.sign({ id: user.id, role: user.role, email: user.email }, JWT_SECRET, { expiresIn: '1d' });
+        res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    } catch (err) { res.status(500).json({ error: 'Server Error' }); }
 });
 
-// 🟢 API: ดึงข้อมูลสินค้าทั้งหมด (ทุกคนดูได้ ไม่ต้องใช้ Token)
+// ดึงสินค้าทั้งหมด
 app.get('/api/products', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM products ORDER BY id DESC');
         res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสินค้า' });
-    }
+    } catch (err) { res.status(500).json({ error: 'ดึงข้อมูลไม่ได้' }); }
 });
 
-// 🔴 API: เพิ่มสินค้าใหม่ (ต้องล็อกอิน และต้องเป็น Admin เท่านั้น)
-// สังเกตว่าเราใส่ authenticateToken คั่นกลางไว้
+// 🔴 เพิ่มสินค้าใหม่ (รองรับฟิลด์ใหม่: sku, color, release_date, stock)
 app.post('/api/products', authenticateToken, async (req, res) => {
-    // เช็คสิทธิ์ว่าเป็น Admin หรือไม่ จากข้อมูลที่ยาม (Middleware) ถอดรหัสมาให้
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'ปฏิเสธการเข้าถึง! เฉพาะผู้ดูแลระบบเท่านั้น' });
-    }
-
-    const { name, brand, price, image } = req.body;
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin เท่านั้น' });
+    const { name, brand, price, image, sku, color, releaseDate, stock } = req.body;
 
     try {
         const result = await pool.query(
-            'INSERT INTO products (name, brand, price, image) VALUES ($1, $2, $3, $4) RETURNING *',
-            [name, brand, price, image]
+            'INSERT INTO products (name, brand, price, image, sku, color, release_date, stock) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [name, brand, price, image, sku, color, releaseDate, JSON.stringify(stock)]
         );
         res.status(201).json({ message: 'เพิ่มสินค้าเรียบร้อย', product: result.rows[0] });
     } catch (err) {
-        res.status(500).json({ error: 'เกิดข้อผิดพลาดในการเพิ่มสินค้า' });
+        console.error("SQL Error (Add):", err); 
+        res.status(500).json({ error: 'เพิ่มสินค้าไม่ได้' });
     }
 });
 
+// 🔴 แก้ไขสินค้า (รองรับฟิลด์ใหม่: sku, color, release_date, stock)
+app.put('/api/products/:id', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'ไม่มีสิทธิ์' });
+    const { id } = req.params;
+    const { name, brand, price, image, sku, color, releaseDate, stock } = req.body;
+
+    try {
+        const result = await pool.query(
+            'UPDATE products SET name=$1, brand=$2, price=$3, image=$4, sku=$5, color=$6, release_date=$7, stock=$8 WHERE id=$9 RETURNING *',
+            [name, brand, price, image, sku, color, releaseDate, JSON.stringify(stock), id]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'แก้ไขไม่สำเร็จ' });
+    }
+});
+
+// ลบสินค้า
+app.delete('/api/products/:id', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'ไม่มีสิทธิ์' });
+    try {
+        await pool.query('DELETE FROM products WHERE id = $1', [req.params.id]);
+        res.json({ message: 'ลบสำเร็จ' });
+    } catch (err) { res.status(500).json({ error: 'ลบไม่สำเร็จ' }); }
+});
+
 // ==========================================
-// 6. เปิดการทำงาน Server
+// 6. เปิด Server
 // ==========================================
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

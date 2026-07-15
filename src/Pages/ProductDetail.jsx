@@ -1,117 +1,240 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 
 export default function ProductDetail({ products, currentUser, handleAddToCart }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = products.find(p => p.id === id);
   
-  const sizes = ["7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "12"];
   const [selectedSize, setSelectedSize] = useState(null);
-  const [showSizeChart, setShowSizeChart] = useState(false); // State สำหรับเปิด/ปิดตารางไซส์
+  const [showDetails, setShowDetails] = useState(true);
+
+  // 🔴 เคลียร์ค่า Size ที่เลือกไว้ทุกครั้งที่เปลี่ยนสินค้า (เปลี่ยนสี)
+  useEffect(() => {
+    setSelectedSize(null);
+  }, [id]);
+
+  // 1. ค้นหาสินค้าปัจจุบันที่กำลังเปิดดูจาก ID
+  const product = products.find(p => p.id === id || p.id === Number(id));
 
   if (!product) {
-    return (
-      <div className="container py-5 text-center" style={{ minHeight: '60vh' }}>
-        <h3 className="fw-bold mt-5">ไม่พบสินค้านี้</h3>
-        <Link to="/" className="btn btn-dark mt-3">กลับไปหน้าแรก</Link>
-      </div>
-    );
+    return <div className="text-center py-5 mt-5 fw-bold text-muted">กำลังโหลดข้อมูล... หรือไม่พบสินค้านี้</div>;
   }
 
+  // 2. ค้นหาสินค้าสีอื่นๆ ในรุ่นเดียวกัน (อ้างอิงจากชื่อสินค้าที่เหมือนกัน)
+  const colorVariants = products.filter(p => p.name === product.name);
+
+  // 3. 🌟 ดึงข้อมูลจริงจากฐานข้อมูล (ที่ Admin กรอกไว้) มาแสดง
+  const productDetails = {
+    brand: product.brand || '-',
+    model: product.name,
+    sku: product.sku || '-', // ดึง SKU จริง
+    color: product.color || '-', // ดึงสีจริง
+    releaseDate: product.releaseDate || '-' // ดึงวันที่จริง
+  };
+
+  // 4. 🌟 สร้างตารางไซส์จากข้อมูลสต็อกจริงของสินค้านั้นๆ
+  const euSizes = ['35.5', '36', '36.5', '37.5', '38', '38.5', '39.5', '40', '40.5', '41.5', '42', '42.5', '43', '44', '44.5', '45', '45.5', '46.5', '47.5'];
+  
+  const sizeChart = euSizes.map((size, index) => {
+    // เช็คว่าในสต็อกมีไซส์นี้กี่ชิ้น ถ้าไม่มีให้เป็น 0
+    const stockCount = product.stock ? Number(product.stock[size] || 0) : 0;
+    return {
+      id: index + 1,
+      EU: size,
+      available: stockCount > 0, // ถ้ามากกว่า 0 แปลว่ามีของ กดซื้อได้
+      stockLimit: stockCount
+    };
+  });
+
+  // ฟังก์ชันกดเพิ่มลงตะกร้า
   const onAddToCart = () => {
-    if (!selectedSize) return alert("กรุณาเลือกไซส์ก่อนเพิ่มลงตะกร้าครับ!");
-    handleAddToCart({ ...product, selectedSize, cartItemId: Date.now().toString() });
+    if (!selectedSize) {
+      alert("กรุณาเลือกไซส์ก่อนเพิ่มลงตะกร้าครับ");
+      return;
+    }
+    const productToAdd = {
+      ...product,
+      selectedSize: `EU ${selectedSize.EU}`,
+      price: product.price 
+    };
+    handleAddToCart(productToAdd);
   };
 
   return (
     <div className="container py-5">
-      <button onClick={() => navigate(-1)} className="btn btn-link text-dark text-decoration-none p-0 mb-4 fw-bold">← ย้อนกลับ</button>
+      
+      <button onClick={() => navigate(-1)} className="btn btn-link text-dark text-decoration-none fw-bold px-0 mb-4">
+        &larr; ย้อนกลับ
+      </button>
 
       <div className="row g-5">
-        {/* รูปภาพ */}
-        <div className="col-md-6">
-          <div className="img-bg-light d-flex align-items-center justify-content-center rounded-4 p-5 position-relative" style={{ minHeight: '500px' }}>
-            <span className="badge bg-danger position-absolute top-0 start-0 m-4 px-3 py-2 fs-6 rounded-pill">🔥 Best Seller</span>
-            <img src={product.image || "https://via.placeholder.com/500"} alt={product.name} style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', mixBlendMode: 'multiply' }} />
+        
+        {/* ======================================= */}
+        {/* ฝั่งซ้าย: รูปภาพสินค้า */}
+        {/* ======================================= */}
+        <div className="col-lg-7">
+          <div className="position-sticky" style={{ top: '20px' }}>
+            <div className="bg-light rounded-4 d-flex align-items-center justify-content-center p-4">
+              {product.image ? (
+                <img 
+                  src={product.image} 
+                  alt={product.name} 
+                  className="img-fluid" 
+                  style={{ 
+                    maxHeight: '400px', 
+                    width: '100%',
+                    objectFit: 'contain',
+                    mixBlendMode: 'multiply'
+                  }} 
+                />
+              ) : (
+                <span className="text-muted py-5">ไม่มีรูปภาพ</span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* รายละเอียด */}
-        <div className="col-md-6">
-          <p className="text-muted mb-1 text-uppercase fw-bold" style={{ letterSpacing: '1px' }}>{product.brand}</p>
-          <h2 className="fw-bold mb-3">{product.name}</h2>
-          
-          <div className="d-flex align-items-center mb-4">
-            <span className="text-warning me-2">★★★★★</span>
-            <span className="text-muted small">(4.8/5 จาก 124 รีวิว)</span>
-          </div>
-
-          <h3 className="fw-bold mb-4 text-danger">฿ {product.price.toLocaleString()}</h3>
-          <hr className="text-muted" />
-
-          {/* เลือกไซส์ & ตารางไซส์ */}
-          <div className="mb-4 mt-4">
-            <div className="d-flex justify-content-between align-items-end mb-3">
-              <h6 className="fw-bold mb-0">เลือกไซส์ (US)</h6>
-              <span className="text-muted small text-decoration-underline" style={{cursor: 'pointer'}} onClick={() => setShowSizeChart(!showSizeChart)}>
-                {showSizeChart ? "ปิดตารางเทียบไซส์" : "📏 ตารางเทียบไซส์"}
-              </span>
+        {/* ======================================= */}
+        {/* ฝั่งขวา: ข้อมูล ไซส์ และรายละเอียด */}
+        {/* ======================================= */}
+        <div className="col-lg-5">
+          <div className="d-flex flex-column h-100">
+            
+            <div className="text-muted text-uppercase fw-bold mb-1" style={{ fontSize: '12px', letterSpacing: '1px' }}>
+              {product.brand}
             </div>
             
-            {/* ตารางเทียบไซส์จำลอง */}
-            {showSizeChart && (
-              <div className="bg-light p-3 rounded-3 mb-3 small">
-                <table className="table table-sm table-borderless text-center mb-0">
-                  <thead><tr className="border-bottom"><th>US</th><th>UK</th><th>EU</th><th>CM</th></tr></thead>
-                  <tbody>
-                    <tr><td>7</td><td>6</td><td>40</td><td>25</td></tr>
-                    <tr><td>8</td><td>7</td><td>41</td><td>26</td></tr>
-                    <tr><td>9</td><td>8</td><td>42.5</td><td>27</td></tr>
-                  </tbody>
-                </table>
+            <h2 className="fw-bold mb-3">{product.name}</h2>
+
+            <h3 className="text-danger fw-bold mb-4">
+              ฿ {Number(product.price).toLocaleString()}
+            </h3>
+
+            {/* เลือกสี (พอกดแล้ว URL จะเปลี่ยน ข้อมูลทุกอย่างจะอัปเดตตามสินค้านั้น) */}
+            {colorVariants.length > 1 && (
+              <div className="mb-4">
+                <div className="d-flex justify-content-between align-items-end mb-2">
+                  <label className="fw-bold">เลือกสี</label>
+                  <span className="text-muted small">{colorVariants.length} สี</span>
+                </div>
+                <div className="d-flex gap-2 flex-wrap">
+                  {colorVariants.map(variant => (
+                    <Link key={variant.id} to={`/product/${variant.id}`}>
+                      <div 
+                        className={`border rounded-2 p-1 ${variant.id === product.id ? 'border-dark border-2' : 'border-light'}`}
+                        style={{ width: '70px', height: '50px', cursor: 'pointer', backgroundColor: '#f8f9fa' }}
+                      >
+                        <img src={variant.image} alt={variant.name} className="w-100 h-100" style={{ objectFit: 'contain', mixBlendMode: 'multiply' }} />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div className="row g-2">
-              {sizes.map(size => (
-                <div className="col-3" key={size}>
-                  <button className={`btn w-100 rounded-2 fw-bold ${selectedSize === size ? 'btn-dark' : 'btn-outline-secondary'}`} onClick={() => setSelectedSize(size)}>
-                    {size}
-                  </button>
-                </div>
-              ))}
+            {/* ตารางไซส์ (ดึงจากสต็อกจริง) */}
+            <div className="bg-light rounded-4 p-3 mb-4">
+              <div className="d-flex align-items-center mb-3">
+                <span className="fw-bold me-2">เลือกไซส์ (EU)</span>
+              </div>
+              
+              <div className="row g-2">
+                {sizeChart.map(item => {
+                  const isSelected = selectedSize?.id === item.id;
+                  
+                  return (
+                    <div className="col-3" key={item.id}>
+                      <button 
+                        disabled={!item.available}
+                        onClick={() => setSelectedSize(item)}
+                        className={`w-100 rounded-2 d-flex flex-column align-items-center justify-content-center ${
+                          isSelected ? 'border-dark border-2 bg-white' : 
+                          !item.available ? 'bg-secondary bg-opacity-10 border-0 text-black-50' : 'bg-white border text-dark shadow-sm'
+                        }`}
+                        style={{ height: '45px', transition: 'all 0.2s', padding: '5px' }}
+                      >
+                        <div className="fw-bold" style={{ fontSize: '13px' }}>
+                          EU {item.EU}
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <div className="mt-5">
+            {/* ปุ่มเพิ่มลงตะกร้า */}
             {currentUser === 'customer' ? (
-              <button className="btn btn-dark btn-lg w-100 rounded-2 fw-bold py-3 mb-3 shadow-sm" onClick={onAddToCart}>🛒 เพิ่มลงตะกร้า</button>
+              <button 
+                className="btn btn-dark w-100 rounded-2 py-3 fw-bold fs-5 mb-3"
+                onClick={onAddToCart}
+              >
+                🛒 เพิ่มลงตะกร้า
+              </button>
+            ) : currentUser === 'admin' ? (
+              <div className="alert alert-warning text-center fw-bold py-2 mb-3">
+                สิทธิ์ Admin ไม่สามารถสั่งซื้อสินค้าได้
+              </div>
             ) : (
-              <Link to="/login" className="btn btn-outline-dark btn-lg w-100 rounded-2 fw-bold py-3 mb-3">เข้าสู่ระบบเพื่อสั่งซื้อ</Link>
+              <Link to="/login" className="btn btn-outline-dark w-100 rounded-2 py-3 fw-bold fs-5 mb-3">
+                เข้าสู่ระบบเพื่อสั่งซื้อ
+              </Link>
             )}
-            <div className="bg-light p-3 rounded-2 text-center text-muted small"><i className="fa-solid fa-shield-halved me-2"></i> สินค้าของแท้ 100% | จัดส่งฟรีเมื่อยอดเกิน 3,000 บาท</div>
-          </div>
-        </div>
-      </div>
 
-      {/* ระบบรีวิวจำลอง */}
-      <div className="mt-5 pt-5 border-top">
-        <h4 className="fw-bold mb-4">รีวิวจากผู้ซื้อจริง</h4>
-        <div className="row g-4">
-          <div className="col-md-6">
-            <div className="bg-light p-4 rounded-4">
-              <span className="text-warning">★★★★★</span>
-              <p className="fw-bold mt-2 mb-1">ใส่สบายมาก คุ้มราคา</p>
-              <p className="text-muted small mb-0">โดย K. Somchai - แนะนำให้เผื่อไซส์ 0.5 ครับ หน้าเท้ากว้างใส่สบาย</p>
+            <div className="bg-light text-center py-2 rounded-2 text-muted small fw-bold mb-4">
+              ✅ สินค้าของแท้ 100% | จัดส่งฟรีเมื่อยอดเกิน 3,000 บาท
             </div>
-          </div>
-          <div className="col-md-6">
-            <div className="bg-light p-4 rounded-4">
-              <span className="text-warning">★★★★★</span>
-              <p className="fw-bold mt-2 mb-1">ส่งไว ของแท้แน่นอน</p>
-              <p className="text-muted small mb-0">โดย K. Natthapong - แพ็คเกจมาดีมากครับ กล่องไม่บุบเลย</p>
+
+            {/* รายละเอียดสินค้าเชิงลึก */}
+            <div className="mt-auto border-top pt-4">
+              
+              <div 
+                className="d-flex justify-content-between align-items-center" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => setShowDetails(!showDetails)}
+              >
+                <h6 className="fw-bold mb-0 text-decoration-underline" style={{ fontSize: '18px' }}>
+                  รายละเอียด
+                </h6>
+                <span className="text-muted">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"
+                    style={{ transform: showDetails ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}>
+                    <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                  </svg>
+                </span>
+              </div>
+              
+              <hr className="text-black-50 mt-3 mb-4" />
+
+              {showDetails && (
+                <div className="row g-3">
+                  <div className="col-4">
+                    <div className="text-muted text-uppercase" style={{ fontSize: '11px' }}>แบรนด์</div>
+                    <div className="fw-bold text-dark small">{productDetails.brand}</div>
+                  </div>
+                  <div className="col-4">
+                    <div className="text-muted text-uppercase" style={{ fontSize: '11px' }}>โมเดล</div>
+                    <div className="fw-bold text-dark small text-truncate" title={productDetails.model}>
+                      {productDetails.model}
+                    </div>
+                  </div>
+                  <div className="col-4">
+                    <div className="text-muted text-uppercase" style={{ fontSize: '11px' }}>SKU</div>
+                    <div className="fw-bold text-dark small">{productDetails.sku}</div>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted text-uppercase" style={{ fontSize: '11px' }}>สี</div>
+                    <div className="fw-bold text-dark small">{productDetails.color}</div>
+                  </div>
+                  <div className="col-6">
+                    <div className="text-muted text-uppercase" style={{ fontSize: '11px' }}>วันที่วางจำหน่าย</div>
+                    <div className="fw-bold text-dark small">{productDetails.releaseDate}</div>
+                  </div>
+                </div>
+              )}
+
             </div>
+
           </div>
         </div>
       </div>
