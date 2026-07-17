@@ -7,7 +7,7 @@
 
 ---
 
- <img src="./docs/GroupProjectApprovalRequestForm.pdf" alt="GroupProject" width="420" />
+ <img src="./docs/GroupProjectApprovalRequestForm.png" alt="GroupProject" width="420" />
 
 ---
 
