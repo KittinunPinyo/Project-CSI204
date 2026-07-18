@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/KickZone.png" alt="KickZone" width="420" />
+  <img src="./docs/KickZone(1).png" alt="KickZone" width="420" />
 </p>
 
 <h1 align="center">Kickzone Shoe (คิ๊กโซน)</h1>
@@ -7,7 +7,9 @@
 
 ---
 
- <img src="./docs/GroupProjectApprovalRequestForm.png" alt="GroupProject" width="420" />
+<p align="center">
+  <img src="./docs/GroupProjectApprovalRequestForm.png" alt="GroupProject" width="420" />
+</p>
 
 ---
 

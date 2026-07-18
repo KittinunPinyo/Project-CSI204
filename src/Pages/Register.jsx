@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -26,73 +27,121 @@ export default function Register() {
       alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     }
   };
+
+  const loginWithGoogle = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        const response = await fetch('http://localhost:5000/api/google-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: tokenResponse.access_token })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          alert('เข้าสู่ระบบด้วย Google สำเร็จ!');
+          navigate('/');
+          window.location.reload();
+        } else {
+          alert(`ไม่สามารถสมัคร/เข้าสู่ระบบได้: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('Error with Google Login:', error);
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      }
+    },
+    onError: () => {
+      alert('การเข้าสู่ระบบด้วย Google ล้มเหลว');
+    }
+  });
+
   return (
-    <div className="py-5" style={{ backgroundColor: '#f8f9fa', minHeight: '90vh' }}>
+    // 🌟 เปลี่ยนสีพื้นหลัง
+    <div className="py-5" style={{ backgroundColor: '#F8F6F3', minHeight: '90vh' }}>
       <div className="container py-4">
         <div className="row align-items-center justify-content-center g-5">
           
-          {/* Section ฝั่งซ้าย: โฆษณาและจุดเด่น */}
           <div className="col-lg-6 d-none d-lg-block pe-5">
-            <h1 className="fw-bold mb-3" style={{ fontSize: '3rem', letterSpacing: '-1px' }}>KICKZONE</h1>
-            <div className="d-inline-block px-3 py-2 rounded-3 mb-3 fw-bold" style={{ backgroundColor: '#e2ff66', color: '#000' }}>
+            <div className="mb-2">
+              <img 
+                src="/KickZone(1).png" 
+                alt="KickZone Logo" 
+                style={{ width: '300px', objectFit: 'contain', transform: 'scale(1.8)', transformOrigin: 'left center' }} 
+              />
+            </div>
+            
+            <div className="d-inline-block px-4 py-2 rounded-pill mb-3 fw-bold shadow-sm" style={{ backgroundColor: '#E8E1D9', color: '#5C4E43' }}>
               เริ่มต้นช้อปปิ้งกับเรา
             </div>
-            <p className="text-muted mb-5 fs-5">
+            <p className="mb-5 fs-5" style={{ color: '#8C7A6B' }}>
               สมัครสมาชิกวันนี้เพื่อรับสิทธิพิเศษ<br/>และติดตามสถานะการสั่งซื้อของคุณได้ตลอด 24 ชม.
             </p>
           </div>
 
-          {/* Section ฝั่งขวา: ฟอร์มสมัครสมาชิก */}
           <div className="col-lg-5 col-md-8">
-            <div className="card border-0 shadow-sm rounded-4 p-5">
+            <div className="card border-0 shadow-sm rounded-4 p-5 bg-white">
               
               <div className="text-center mb-4">
-                <div className="bg-dark text-white d-inline-block p-2 rounded-2 fw-bold fs-4 mb-3" style={{ width: '60px', height: '60px', lineHeight: '45px' }}>
-                  KZ
+                <div className="mb-2 d-flex justify-content-center">
+                  <img 
+                    src="/KickZone(1).png" 
+                    alt="KickZone Logo" 
+                    style={{ width: '220px', objectFit: 'contain', transform: 'scale(1.5)' }} 
+                  />
                 </div>
-                <h4 className="fw-bold">สมัครสมาชิก KICKZONE</h4>
+                <h4 className="fw-bold" style={{ color: '#5C4E43' }}>สมัครสมาชิก</h4>
               </div>
               
               <form onSubmit={handleRegister}>
                 <div className="mb-3">
-                  <label className="form-label text-muted small fw-bold mb-1">ชื่อ - นามสกุล</label>
-                  <input type="text" className="form-control form-control-lg rounded-2 bg-white" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ชื่อ-นามสกุล" style={{ fontSize: '14px' }} />
+                  <label className="form-label small fw-bold mb-1" style={{ color: '#8C7A6B' }}>ชื่อ - นามสกุล</label>
+                  <input type="text" className="form-control form-control-lg rounded-3 bg-light border-0" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="ชื่อ-นามสกุล" style={{ fontSize: '14px' }} />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label text-muted small fw-bold mb-1">อีเมล</label>
-                  <input type="email" className="form-control form-control-lg rounded-2 bg-white" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="อีเมล" style={{ fontSize: '14px' }} />
+                  <label className="form-label small fw-bold mb-1" style={{ color: '#8C7A6B' }}>อีเมล</label>
+                  <input type="email" className="form-control form-control-lg rounded-3 bg-light border-0" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="อีเมล" style={{ fontSize: '14px' }} />
                 </div>
                 <div className="mb-4">
-                  <label className="form-label text-muted small fw-bold mb-1">รหัสผ่าน</label>
-                  <input type="password" className="form-control form-control-lg rounded-2 bg-white" required minLength="6" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="รหัสผ่าน (ขั้นต่ำ 6 ตัวอักษร)" style={{ fontSize: '14px' }} />
+                  <label className="form-label small fw-bold mb-1" style={{ color: '#8C7A6B' }}>รหัสผ่าน</label>
+                  <input type="password" className="form-control form-control-lg rounded-3 bg-light border-0" required minLength="6" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="รหัสผ่าน (ขั้นต่ำ 6 ตัวอักษร)" style={{ fontSize: '14px' }} />
                 </div>
-                <button type="submit" className="btn btn-dark btn-lg w-100 mb-3 rounded-2 fw-bold" style={{ fontSize: '15px' }}>
-                  สร้างบัญชีใหม่ด้วยอีเมล
+                <button type="submit" className="btn btn-lg w-100 mb-3 rounded-pill fw-bold text-white shadow-sm" style={{ fontSize: '15px', backgroundColor: '#8C7A6B' }}>
+                  สร้างบัญชีใหม่
                 </button>
               </form>
 
-              {/* เส้นคั่น "หรือ" */}
               <div className="d-flex align-items-center mb-4 mt-3">
-                <hr className="flex-grow-1 text-muted" />
-                <span className="mx-3 text-muted small">หรือ</span>
-                <hr className="flex-grow-1 text-muted" />
+                <hr className="flex-grow-1" style={{ borderColor: '#E8E1D9' }} />
+                <span className="mx-3 small fw-bold" style={{ color: '#8C7A6B' }}>หรือ</span>
+                <hr className="flex-grow-1" style={{ borderColor: '#E8E1D9' }} />
               </div>
 
-              {/* ปุ่ม Social Login */}
-              <div className="d-flex gap-2 mb-4">
-                <button className="btn btn-outline-secondary w-100 rounded-2 py-2 fw-bold" style={{color: '#1877F2'}}>f</button>
-                <button className="btn btn-outline-secondary w-100 rounded-2 py-2 fw-bold" style={{color: '#DB4437'}}>G</button>
-                <button className="btn btn-outline-secondary w-100 rounded-2 py-2 fw-bold text-dark"></button>
+              <div className="mb-4">
+                <button 
+                  type="button" 
+                  className="btn bg-white border w-100 fw-bold py-2 d-flex align-items-center justify-content-center gap-2 rounded-pill shadow-sm"
+                  style={{ borderColor: '#E8E1D9', color: '#5C4E43' }}
+                  onClick={() => loginWithGoogle()}
+                >
+                  <img 
+                    src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" 
+                    alt="Google Logo" 
+                    width="20" 
+                    height="20" 
+                  />
+                  สมัครสมาชิกด้วย Google
+                </button>
               </div>
 
               <div className="text-center mt-2 small">
-                <span className="text-muted">มีบัญชีอยู่แล้ว? </span>
-                <Link to="/login" className="text-dark fw-bold text-decoration-underline">เข้าสู่ระบบ</Link>
+                <span style={{ color: '#8C7A6B' }}>มีบัญชีอยู่แล้ว? </span>
+                <Link to="/login" className="fw-bold text-decoration-underline" style={{ color: '#5C4E43' }}>เข้าสู่ระบบ</Link>
               </div>
-
             </div>
           </div>
-
         </div>
       </div>
     </div>

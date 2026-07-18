@@ -113,7 +113,7 @@ export default function Profile() {
         
         {/* บัญชีของฉัน */}
         <h2 style={{ fontSize: '22px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '32px', letterSpacing: '0.5px' }}>
-          <span style={{ fontSize: '24px' }}>👤</span> บัญชีของฉัน
+          <span style={{ fontSize: '24px' }}></span> บัญชีของฉัน
         </h2>
 
         {/* กริดแบ่งฝั่ง ข้อมูลโปรไฟล์ และ ประวัติสั่งซื้อ */}

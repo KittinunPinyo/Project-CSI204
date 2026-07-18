@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer'); 
 const path = require('path');     
 const fs = require('fs');         
+const bcrypt = require('bcrypt'); // 🌟 นำเข้า bcrypt สำหรับเข้ารหัสผ่าน
 require('dotenv').config();
 
 // นำเข้าไลบรารีตรวจเช็คสลิปผ่าน QR Code (แก้ไขบั๊ก Jimp v1+ Compatibility)
@@ -202,9 +203,13 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ error: 'อีเมลนี้ถูกใช้งานแล้ว' });
         }
 
+        // 🌟 เข้ารหัสผ่านก่อนบันทึกลง Database (สุ่ม 10 รอบ)
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
         const result = await pool.query(
             'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
-            [name, email, password, 'customer']
+            [name, email, hashedPassword, 'customer'] // 🌟 บันทึก hashedPassword
         );
 
         res.status(201).json({ 
@@ -222,13 +227,86 @@ app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (result.rows.length === 0 || password !== result.rows[0].password) {
+        
+        if (result.rows.length === 0) {
             return res.status(401).json({ error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
         }
+        
         const user = result.rows[0];
+        let isMatch = false;
+
+        // 🌟 ตรวจสอบรหัสผ่านโดยใช้ bcrypt.compare
+        if (user.password === 'google-login') {
+            // ถ้าเป็นบัญชี Google ไม่ให้ล็อกอินด้วยรหัสผ่านปกติ
+            return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบด้วยปุ่ม Google' });
+        } else {
+            // นำรหัสผ่านที่กรอกมา เทียบกับรหัสผ่านที่เข้ารหัสไว้ในระบบ
+            isMatch = await bcrypt.compare(password, user.password);
+        }
+
+        if (!isMatch) {
+            return res.status(401).json({ error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
+        }
+
         const token = jwt.sign({ id: user.id, role: user.role, email: user.email }, JWT_SECRET, { expiresIn: '1d' });
         res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
-    } catch (err) { res.status(500).json({ error: 'Server Error' }); }
+    } catch (err) { 
+        console.error(err);
+        res.status(500).json({ error: 'Server Error' }); 
+    }
+});
+
+// 🟢 API: เข้าสู่ระบบ / สมัครสมาชิก ด้วย Google
+app.post('/api/google-login', async (req, res) => {
+    const { access_token } = req.body;
+    
+    if (!access_token) {
+        return res.status(400).json({ error: 'ไม่พบ Access Token จาก Google' });
+    }
+
+    try {
+        // 1. นำ Token ไปถาม Google เพื่อขอข้อมูลผู้ใช้ (อีเมล, ชื่อ, รูปโปรไฟล์)
+        const googleResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${access_token}` }
+        });
+        const googleUser = await googleResponse.json();
+
+        if (!googleUser.email) {
+            return res.status(400).json({ error: 'ไม่สามารถดึงอีเมลจาก Google ได้' });
+        }
+
+        const { email, name } = googleUser;
+
+        // 2. เช็คว่ามีอีเมลนี้ในฐานข้อมูลเราหรือยัง
+        let result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        let user;
+
+        if (result.rows.length === 0) {
+            // 3. (กรณีไม่มีอีเมล) -> สมัครสมาชิกให้โดยอัตโนมัติ!
+            // ตั้งรหัสผ่านหลอกๆ ไว้ เพราะผู้ใช้คนนี้ล็อกอินผ่าน Google ตลอด
+            const insertResult = await pool.query(
+                "INSERT INTO users (name, email, password, role) VALUES ($1, $2, 'google-login', 'customer') RETURNING *",
+                [name, email]
+            );
+            user = insertResult.rows[0];
+        } else {
+            // 4. (กรณีมีอีเมลแล้ว) -> ดึงข้อมูลผู้ใช้มาใช้งาน
+            user = result.rows[0];
+        }
+
+        // 5. สร้าง JWT Token ของระบบเราเอง (เหมือนการล็อกอินปกติ)
+        const token = jwt.sign({ id: user.id, role: user.role, email: user.email }, JWT_SECRET, { expiresIn: '1d' });
+
+        res.json({
+            message: 'เข้าสู่ระบบด้วย Google สำเร็จ',
+            token: token,
+            user: { id: user.id, name: user.name, email: user.email, role: user.role }
+        });
+
+    } catch (err) {
+        console.error("Google Auth Error:", err);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูล Google' });
+    }
 });
 
 // ดึงรายการสินค้าทั้งหมด
