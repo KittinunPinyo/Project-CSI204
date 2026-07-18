@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import Cart from './pages/Cart';
 import ProductDetail from './pages/ProductDetail';
 import Profile from './pages/Profile';
+import ManageReviews from './pages/ManageReviews'; 
 
 export default function App() {
   const navigate = useNavigate();
@@ -132,7 +133,8 @@ export default function App() {
       const res = await fetch('http://localhost:5000/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newOrder) });
       const savedOrder = await res.json();
       setOrders([savedOrder, ...orders]);
-      setCart([]);
+      let clearCart = [];
+      setCart(clearCart);
       alert("ชำระเงินสำเร็จ!");
       navigate('/profile');
     } catch (err) { alert("เกิดข้อผิดพลาดในการสั่งซื้อ"); }
@@ -174,6 +176,8 @@ export default function App() {
             orders={orders} handleUpdateOrderStatus={handleUpdateOrderStatus} 
           />
         } />
+        {/* 🆕 เพิ่ม Route สำหรับหน้าจัดการรีวิวของแอดมิน */}
+        <Route path="/admin/reviews" element={<ManageReviews />} /> 
       </Routes>
     </div>
   );

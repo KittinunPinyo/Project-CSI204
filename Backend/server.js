@@ -98,6 +98,7 @@ const initializeDatabase = async () => {
             }
         }
 
+        // 1. ตาราง Orders
         await pool.query(`
             CREATE TABLE IF NOT EXISTS orders (
                 id VARCHAR(50) PRIMARY KEY,
@@ -115,6 +116,21 @@ const initializeDatabase = async () => {
             );
         `);
         console.log("✅ NeonDB: ตรวจสอบและจัดการโครงสร้างตาราง 'orders' เรียบร้อย พร้อมใช้งาน!");
+
+        // 2. ตาราง Reviews (สร้างใหม่)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS reviews (
+                id SERIAL PRIMARY KEY,
+                product_id VARCHAR(255) NOT NULL,
+                user_id INTEGER NOT NULL,
+                rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+                comment TEXT NOT NULL,
+                status VARCHAR(50) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        console.log("✅ NeonDB: ตรวจสอบและจัดการตาราง 'reviews' เรียบร้อย!");
+
     } catch (err) {
         console.error("❌ Database Initialization Error:", err.message);
     }
@@ -436,7 +452,109 @@ app.delete('/api/orders/:id', async (req, res) => {
 });
 
 // ==========================================
-// 6. เปิดพอร์ตใช้งาน Server
+// 6. API Routes สำหรับระบบรีวิว (Reviews)
+// ==========================================
+
+// 1) ลูกค้าส่งรีวิวสินค้า (บังคับล็อกอินผ่าน authenticateToken)
+app.post('/api/reviews', authenticateToken, async (req, res) => {
+    try {
+        const { productId, rating, comment } = req.body;
+        const userId = req.user.id; // ดึง ID มาจาก Token ที่ล็อกอิน
+
+        const result = await pool.query(
+            'INSERT INTO reviews (product_id, user_id, rating, comment, status) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [productId, userId, rating, comment, 'pending']
+        );
+        res.status(201).json({ success: true, review: result.rows[0] });
+    } catch (error) {
+        console.error("Add Review Error:", error);
+        res.status(500).json({ error: 'เกิดข้อผิดพลาดในการส่งรีวิว' });
+    }
+});
+
+// 2) ดึงรีวิวที่ "อนุมัติแล้ว" ไปโชว์หน้าสินค้า (ไม่ต้องล็อกอิน ลูกค้าทั่วไปดูได้)
+app.get('/api/reviews/product/:productId', async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const query = `
+            SELECT r.id AS _id, r.rating, r.comment, r.created_at, u.name AS user_name
+            FROM reviews r
+            JOIN users u ON r.user_id = u.id
+            WHERE r.product_id = $1 AND r.status = 'approved'
+            ORDER BY r.created_at DESC
+        `;
+        const { rows } = await pool.query(query, [productId]);
+        
+        // จัดรูปแบบ JSON ให้ตรงกับที่ Frontend React คาดหวัง
+        const formattedReviews = rows.map(row => ({
+            _id: row._id,
+            rating: row.rating,
+            comment: row.comment,
+            createdAt: row.created_at,
+            userId: { name: row.user_name }
+        }));
+        
+        res.json(formattedReviews);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'ดึงข้อมูลรีวิวไม่ได้' });
+    }
+});
+
+// 3) แอดมินดึงรีวิว "ทั้งหมด" (ทุกสถานะ) ไปโชว์หน้า Manage Reviews (บังคับแอดมิน)
+app.get('/api/admin/reviews', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin เท่านั้น' });
+    
+    try {
+        // ดึงข้อมูลรีวิว พร้อมเชื่อมตาราง Users(ชื่อลูกค้า) และ Products(ชื่อสินค้า)
+        const query = `
+            SELECT r.id AS _id, r.rating, r.comment, r.status, r.created_at, 
+                   u.name AS user_name, p.name AS product_name
+            FROM reviews r
+            JOIN users u ON r.user_id = u.id
+            LEFT JOIN products p ON r.product_id::varchar = p.id::varchar
+            ORDER BY r.created_at DESC
+        `;
+        const { rows } = await pool.query(query);
+        
+        const formattedReviews = rows.map(row => ({
+            _id: row._id,
+            rating: row.rating,
+            comment: row.comment,
+            status: row.status,
+            createdAt: row.created_at,
+            userId: { name: row.user_name },
+            productId: { name: row.product_name || 'ไม่ทราบชื่อสินค้า' }
+        }));
+        
+        res.json(formattedReviews);
+    } catch (error) {
+        console.error("Admin Fetch Reviews Error:", error);
+        res.status(500).json({ error: 'ดึงข้อมูลรีวิวทั้งหมดไม่ได้' });
+    }
+});
+
+// 4) แอดมินเปลี่ยนสถานะรีวิว (Approve / Reject)
+app.put('/api/admin/reviews/:id/status', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin เท่านั้น' });
+    
+    try {
+        const { status } = req.body; 
+        const result = await pool.query(
+            'UPDATE reviews SET status = $1 WHERE id = $2 RETURNING *',
+            [status, req.params.id]
+        );
+        
+        if (result.rows.length === 0) return res.status(404).json({ error: 'ไม่พบรีวิวนี้' });
+        res.json({ success: true, review: result.rows[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'อัปเดตสถานะล้มเหลว' });
+    }
+});
+
+// ==========================================
+// 7. เปิดพอร์ตใช้งาน Server
 // ==========================================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`KickZone Backend is running on port ${PORT}`));
