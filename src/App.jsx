@@ -26,7 +26,9 @@ export default function App() {
   // 🔴 ปรับ State เริ่มต้นให้รองรับฟิลด์ใหม่ทั้งหมด
   const [newProduct, setNewProduct] = useState({ 
     name: "", brand: "", price: "", image: "", 
-    sku: "", color: "", releaseDate: "", stock: {} 
+    sku: "", color: "", releaseDate: "", stock: {},
+    discountType: 'fixed',
+    discountValue: 0
   });
 
   const [products, setProducts] = useState([]);
@@ -41,6 +43,8 @@ export default function App() {
           ...p, 
           id: p.id.toString(), 
           price: Number(p.price),
+          discountType: p.discount_type || p.discountType || 'fixed',
+          discountValue: Number(p.discount_value ?? p.discountValue ?? 0),
           // ตรวจสอบว่า stock เป็น Object หรือยัง
           stock: typeof p.stock === 'string' ? JSON.parse(p.stock) : (p.stock || {})
         })));
@@ -75,7 +79,7 @@ export default function App() {
       const data = await res.json();
       const added = data.product; 
 
-      setProducts([{...added, id: added.id.toString(), price: Number(added.price), stock: added.stock}, ...products]);
+      setProducts([{...added, id: added.id.toString(), price: Number(added.price), discountType: added.discount_type || added.discountType || 'fixed', discountValue: Number(added.discount_value ?? added.discountValue ?? 0), stock: added.stock}, ...products]);
       alert("เพิ่มสินค้าสำเร็จ!");
     } catch (err) { 
       console.error(err);
@@ -94,7 +98,14 @@ export default function App() {
       if (!res.ok) throw new Error("เกิดข้อผิดพลาด");
       
       const data = await res.json();
-      setProducts(products.map(p => p.id === updatedProduct.id ? {...data, id: data.id.toString(), price: Number(data.price), stock: data.stock} : p));
+      setProducts(products.map(p => p.id === updatedProduct.id ? {
+        ...data,
+        id: data.id.toString(),
+        price: Number(data.price),
+        discountType: data.discount_type || data.discountType || 'fixed',
+        discountValue: Number(data.discount_value ?? data.discountValue ?? 0),
+        stock: data.stock
+      } : p));
       alert("อัปเดตข้อมูลสำเร็จ!");
     } catch (err) { 
       console.error(err);
@@ -150,7 +161,21 @@ export default function App() {
   useEffect(() => { localStorage.setItem("cart", JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem("wishlist", JSON.stringify(wishlist)); }, [wishlist]);
 
-  const handleAddToCart = (product) => { setCart([...cart, product]); alert(`เพิ่ม ${product.name} ลงตะกร้าแล้ว!`); };
+  const computeDiscountedProductPrice = (product) => {
+    const basePrice = Number(product.price) || 0;
+    const value = Number(product.discountValue || 0);
+    if (product.discountType === 'percentage') {
+      return Math.max(0, Math.round(basePrice * (1 - value / 100)));
+    }
+    return Math.max(0, Math.round(basePrice - value));
+  };
+
+  const handleAddToCart = (product) => {
+    const basePrice = product.originalPrice != null ? Number(product.originalPrice) : Number(product.price);
+    const discountedPrice = computeDiscountedProductPrice({ ...product, price: basePrice });
+    setCart([...cart, { ...product, price: discountedPrice, originalPrice: basePrice }]);
+    alert(`เพิ่ม ${product.name} ลงตะกร้าแล้ว!`);
+  };
   const toggleWishlist = (product) => {
     if (currentUser !== 'customer') return alert("กรุณาเข้าสู่ระบบก่อนครับ");
     const isExist = wishlist.find(item => item.id === product.id);

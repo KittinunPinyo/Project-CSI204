@@ -126,9 +126,11 @@ const initializeDatabase = async () => {
                 user_id INTEGER NOT NULL,
                 rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
                 comment TEXT NOT NULL,
+                image VARCHAR(255),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        await pool.query(`ALTER TABLE reviews ADD COLUMN IF NOT EXISTS image VARCHAR(255);`);
         console.log("✅ NeonDB: ตรวจสอบและจัดการตาราง 'reviews' เรียบร้อย!");
 
         // 3. ตาราง Promotions
@@ -139,16 +141,69 @@ const initializeDatabase = async () => {
                 description TEXT NOT NULL,
                 discount_type VARCHAR(20) NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
                 discount_value NUMERIC(10, 2) NOT NULL,
+                max_discount NUMERIC(10, 2),
                 max_uses INTEGER,
                 current_uses INTEGER DEFAULT 0,
                 start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 end_date TIMESTAMP,
+                is_flash_sale BOOLEAN DEFAULT false,
                 is_active BOOLEAN DEFAULT true,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        await pool.query(`ALTER TABLE promotions ADD COLUMN IF NOT EXISTS is_flash_sale BOOLEAN NOT NULL DEFAULT false;`);
         console.log("✅ NeonDB: ตรวจสอบและจัดการตาราง 'promotions' เรียบร้อย!");
+
+        // 4. ตาราง Products
+        const productsTableExists = await pool.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name = 'products'
+            );
+        `);
+
+        if (!productsTableExists.rows[0].exists) {
+            await pool.query(`
+                CREATE TABLE products (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    brand VARCHAR(100),
+                    price NUMERIC(10, 2) NOT NULL DEFAULT 0,
+                    image VARCHAR(255),
+                    sku VARCHAR(100),
+                    color VARCHAR(100),
+                    release_date VARCHAR(100),
+                    stock JSONB DEFAULT '{}'::jsonb,
+                    discount_type VARCHAR(20) NOT NULL DEFAULT 'fixed',
+                    discount_value NUMERIC(10, 2) NOT NULL DEFAULT 0
+                );
+            `);
+            console.log("✅ NeonDB: สร้างตาราง 'products' ใหม่เรียบร้อย!");
+        } else {
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS name VARCHAR(255) NOT NULL DEFAULT '';`);
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS brand VARCHAR(100);`);
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS price NUMERIC(10, 2) NOT NULL DEFAULT 0;`);
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS image VARCHAR(255);`);
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sku VARCHAR(100);`);
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS color VARCHAR(100);`);
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS release_date VARCHAR(100);`);
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock JSONB DEFAULT '{}'::jsonb;`);
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) NOT NULL DEFAULT 'fixed';`);
+            await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_value NUMERIC(10, 2) NOT NULL DEFAULT 0;`);
+            await pool.query(`
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'products_discount_type_check'
+                    ) THEN
+                        ALTER TABLE products ADD CONSTRAINT products_discount_type_check CHECK (discount_type IN ('percentage', 'fixed'));
+                    END IF;
+                END$$;
+            `);
+            console.log("✅ NeonDB: ตรวจสอบและปรับโครงสร้างตาราง 'products' เรียบร้อย!");
+        }
 
     } catch (err) {
         console.error("❌ Database Initialization Error:", err.message);
@@ -320,12 +375,12 @@ app.get('/api/products', async (req, res) => {
 // เพิ่มสินค้าใหม่
 app.post('/api/products', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin เท่านั้น' });
-    const { name, brand, price, image, sku, color, releaseDate, stock } = req.body;
+    const { name, brand, price, image, sku, color, releaseDate, stock, discountType, discountValue } = req.body;
 
     try {
         const result = await pool.query(
-            'INSERT INTO products (name, brand, price, image, sku, color, release_date, stock) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-            [name, brand, price, image, sku, color, releaseDate, JSON.stringify(stock)]
+            'INSERT INTO products (name, brand, price, image, sku, color, release_date, stock, discount_type, discount_value) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+            [name, brand, price, image, sku, color, releaseDate, JSON.stringify(stock), discountType || 'fixed', discountValue || 0]
         );
         res.status(201).json({ message: 'เพิ่มสินค้าเรียบร้อย', product: result.rows[0] });
     } catch (err) {
@@ -338,17 +393,40 @@ app.post('/api/products', authenticateToken, async (req, res) => {
 app.put('/api/products/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'ไม่มีสิทธิ์' });
     const { id } = req.params;
-    const { name, brand, price, image, sku, color, releaseDate, stock } = req.body;
+    const { name, brand, price, image, sku, color, releaseDate, stock, discountType, discountValue } = req.body;
 
     try {
         const result = await pool.query(
-            'UPDATE products SET name=$1, brand=$2, price=$3, image=$4, sku=$5, color=$6, release_date=$7, stock=$8 WHERE id=$9 RETURNING *',
-            [name, brand, price, image, sku, color, releaseDate, JSON.stringify(stock), id]
+            'UPDATE products SET name=$1, brand=$2, price=$3, image=$4, sku=$5, color=$6, release_date=$7, stock=$8, discount_type=$9, discount_value=$10 WHERE id=$11 RETURNING *',
+            [name, brand, price, image, sku, color, releaseDate, JSON.stringify(stock), discountType || 'fixed', discountValue || 0, id]
         );
         res.json(result.rows[0]);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'แก้ไขไม่สำเร็จ: ' + err.message });
+    }
+});
+
+// อัปเดตส่วนลดสินค้าเฉพาะรายการ
+app.patch('/api/products/:id/discount', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin เท่านั้น' });
+    const { id } = req.params;
+    const { discountType, discountValue } = req.body;
+
+    if (!['percentage', 'fixed'].includes(discountType)) {
+        return res.status(400).json({ error: 'discountType ต้องเป็น percentage หรือ fixed' });
+    }
+
+    try {
+        const result = await pool.query(
+            'UPDATE products SET discount_type=$1, discount_value=$2 WHERE id=$3 RETURNING *',
+            [discountType, Number(discountValue) || 0, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'ไม่พบสินค้าในระบบ' });
+        res.json({ success: true, product: result.rows[0] });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'อัปเดตส่วนลดสินค้าไม่สำเร็จ: ' + err.message });
     }
 });
 
@@ -602,14 +680,15 @@ app.delete('/api/orders/:id', async (req, res) => {
 // ==========================================
 
 // 1) ลูกค้าส่งรีวิวสินค้า (บังคับล็อกอินผ่าน authenticateToken)
-app.post('/api/reviews', authenticateToken, async (req, res) => {
+app.post('/api/reviews', authenticateToken, upload.single('image'), async (req, res) => {
     try {
         const { productId, rating, comment } = req.body;
         const userId = req.user.id; // ดึง ID มาจาก Token ที่ล็อกอิน
+        const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
 
         const result = await pool.query(
-            'INSERT INTO reviews (product_id, user_id, rating, comment) VALUES ($1, $2, $3, $4) RETURNING *',
-            [productId, userId, rating, comment]
+            'INSERT INTO reviews (product_id, user_id, rating, comment, image) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [productId, userId, rating, comment, imagePath]
         );
         res.status(201).json({ success: true, review: result.rows[0] });
     } catch (error) {
@@ -623,7 +702,7 @@ app.get('/api/reviews/product/:productId', async (req, res) => {
     try {
         const { productId } = req.params;
         const query = `
-            SELECT r.id, r.rating, r.comment, r.created_at, u.name AS user_name
+            SELECT r.id, r.rating, r.comment, r.image, r.created_at, u.name AS user_name
             FROM reviews r
             JOIN users u ON r.user_id = u.id
             WHERE r.product_id = $1
@@ -644,7 +723,7 @@ app.get('/api/admin/reviews', authenticateToken, async (req, res) => {
     try {
         // ดึงข้อมูลรีวิว พร้อมเชื่อมตาราง Users(ชื่อลูกค้า) และ Products(ชื่อสินค้า)
         const query = `
-            SELECT r.id, r.rating, r.comment, r.created_at, 
+            SELECT r.id, r.rating, r.comment, r.image, r.created_at, 
                    u.name AS user_name, p.name AS product_name
             FROM reviews r
             JOIN users u ON r.user_id = u.id
@@ -686,7 +765,7 @@ app.get('/api/promotions', async (req, res) => {
     try {
         const query = `
             SELECT id, code, description, discount_type, discount_value, 
-                   max_uses, current_uses, start_date, end_date, is_active
+                   max_uses, current_uses, start_date, end_date, is_flash_sale, is_active
             FROM promotions
             WHERE is_active = true 
             AND NOW() >= start_date 
@@ -736,6 +815,11 @@ app.post('/api/promotions/validate', async (req, res) => {
             discountAmount = promo.discount_value;
         }
 
+        // ถ้ามี max_discount กำหนดไว้ ให้จำกัดส่วนลดสูงสุด
+        if (promo.max_discount && discountAmount > promo.max_discount) {
+            discountAmount = promo.max_discount;
+        }
+
         res.json({
             success: true,
             message: 'โปรโมชั่นถูกต้อง',
@@ -745,7 +829,9 @@ app.post('/api/promotions/validate', async (req, res) => {
                 description: promo.description,
                 discountType: promo.discount_type,
                 discountValue: promo.discount_value,
-                discountAmount: discountAmount
+                discountAmount: discountAmount,
+                maxDiscount: promo.max_discount || null,
+                isFlashSale: promo.is_flash_sale
             }
         });
     } catch (error) {
@@ -760,8 +846,8 @@ app.get('/api/admin/promotions', authenticateToken, async (req, res) => {
     
     try {
         const query = `
-            SELECT id, code, description, discount_type, discount_value, 
-                   max_uses, current_uses, start_date, end_date, is_active, created_at, updated_at
+            SELECT id, code, description, discount_type, discount_value, max_discount,
+                   max_uses, current_uses, start_date, end_date, is_flash_sale, is_active, created_at, updated_at
             FROM promotions
             ORDER BY created_at DESC
         `;
@@ -778,7 +864,19 @@ app.post('/api/admin/promotions', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin เท่านั้น' });
     
     try {
-        const { code, description, discountType, discountValue, maxUses, startDate, endDate } = req.body;
+        const {
+            code,
+            description,
+            discountType,
+            discountValue,
+            maxDiscount,
+            maxUses,
+            startDate,
+            endDate,
+            isFlashSale,
+            isActive,
+            is_active
+        } = req.body;
 
         if (!code || !description || !discountType || !discountValue) {
             return res.status(400).json({ error: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
@@ -788,11 +886,18 @@ app.post('/api/admin/promotions', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'ประเภทส่วนลดไม่ถูกต้อง' });
         }
 
+        const active = typeof isActive === 'boolean' ? isActive : (typeof is_active === 'boolean' ? is_active : true);
+        const maxDiscountValue = maxDiscount ? Number(maxDiscount) : null;
+        const maxUsesValue = maxUses ? Number(maxUses) : null;
+        const startDateValue = startDate ? startDate : new Date();
+        const endDateValue = endDate ? endDate : null;
+        const flashSaleValue = typeof isFlashSale === 'boolean' ? isFlashSale : false;
+
         const result = await pool.query(
-            `INSERT INTO promotions (code, description, discount_type, discount_value, max_uses, start_date, end_date, is_active)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+            `INSERT INTO promotions (code, description, discount_type, discount_value, max_discount, max_uses, start_date, end_date, is_flash_sale, is_active)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              RETURNING *`,
-            [code, description, discountType, discountValue, maxUses || null, startDate || new Date(), endDate || null]
+            [code, description, discountType, discountValue, maxDiscountValue, maxUsesValue, startDateValue, endDateValue, flashSaleValue, active]
         );
 
         res.status(201).json({ 
@@ -814,12 +919,32 @@ app.put('/api/admin/promotions/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin เท่านั้น' });
     
     try {
-        const { code, description, discountType, discountValue, maxUses, startDate, endDate, is_active } = req.body;
+        const {
+            code,
+            description,
+            discountType,
+            discountValue,
+            maxDiscount,
+            maxUses,
+            startDate,
+            endDate,
+            isFlashSale,
+            isActive,
+            is_active
+        } = req.body;
+
+        const active = typeof isActive === 'boolean' ? isActive : (typeof is_active === 'boolean' ? is_active : true);
+        const maxDiscountValue = maxDiscount ? Number(maxDiscount) : null;
+        const maxUsesValue = maxUses ? Number(maxUses) : null;
+        const startDateValue = startDate ? startDate : null;
+        const endDateValue = endDate ? endDate : null;
+        const flashSaleValue = typeof isFlashSale === 'boolean' ? isFlashSale : false;
+
         const result = await pool.query(
             `UPDATE promotions 
-             SET code=$1, description=$2, discount_type=$3, discount_value=$4, max_uses=$5, start_date=$6, end_date=$7, is_active=$8, updated_at=CURRENT_TIMESTAMP
-             WHERE id=$9 RETURNING *`,
-            [code, description, discountType, discountValue, maxUses, startDate, endDate, is_active, req.params.id]
+             SET code=$1, description=$2, discount_type=$3, discount_value=$4, max_discount=$5, max_uses=$6, start_date=$7, end_date=$8, is_flash_sale=$9, is_active=$10, updated_at=CURRENT_TIMESTAMP
+             WHERE id=$11 RETURNING *`,
+            [code, description, discountType, discountValue, maxDiscountValue, maxUsesValue, startDateValue, endDateValue, flashSaleValue, active, req.params.id]
         );
         
         if (result.rows.length === 0) return res.status(404).json({ error: 'ไม่พบโปรโมชั่นนี้' });
@@ -830,6 +955,23 @@ app.put('/api/admin/promotions/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// 6) แอดมินลบโปรโมชั่น
+app.delete('/api/admin/promotions/:id', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin เท่านั้น' });
+    
+    try {
+        const result = await pool.query(
+            'DELETE FROM promotions WHERE id = $1 RETURNING id',
+            [req.params.id]
+        );
+        
+        if (result.rows.length === 0) return res.status(404).json({ error: 'ไม่พบโปรโมชั่นนี้' });
+        res.json({ success: true, message: 'ลบโปรโมชั่นสำเร็จ' });
+    } catch (error) {
+        console.error("Delete Promotion Error:", error);
+        res.status(500).json({ error: 'ลบโปรโมชั่นล้มเหลว' });
+    }
+});
 
 // ==========================================
 // 8. API Routes สำหรับระบบจัดการผู้ใช้งาน (Manage Users)

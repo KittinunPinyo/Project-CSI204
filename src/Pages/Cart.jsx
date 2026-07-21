@@ -25,6 +25,8 @@ export default function Cart() {
   const [error, setError] = useState(null);
 
   const [focusedField, setFocusedField] = useState(null);
+  const [appliedPromotion, setAppliedPromotion] = useState(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   useEffect(() => {
     const storedCart = localStorage.getItem('cart');
@@ -59,9 +61,69 @@ export default function Cart() {
     }
   }, []);
 
+  // Reset discount when cart changes
+  useEffect(() => {
+    setDiscountAmount(0);
+    setAppliedPromotion(null);
+  }, [cartItems.length]);
+
   const subTotal = cartItems.reduce((acc, item) => acc + (item.price * (item.quantity || 1)), 0);
   const shippingFee = subTotal > 0 ? 100 : 0;
-  const totalAmount = subTotal + shippingFee;
+  const finalSubtotal = subTotal + shippingFee;
+  const totalAmount = Math.max(0, finalSubtotal - (discountAmount || 0));
+
+  const handleApplyPromotion = (validationData) => {
+    try {
+      // Extract promotion data - could be at different levels
+      let promotion = null;
+      let discountValue = 0;
+      let maxDiscount = 0;
+
+      // Check if discount is directly in validationData
+      if (validationData.discountAmount !== undefined) {
+        discountValue = Number(validationData.discountAmount) || 0;
+        maxDiscount = Number(validationData.max_discount) || 0;
+        promotion = validationData;
+      }
+      // Check if promotion is nested (from API response)
+      else if (validationData.promotion) {
+        promotion = validationData.promotion;
+        if (promotion.discountAmount !== undefined) {
+          discountValue = Number(promotion.discountAmount) || 0;
+        } else if (promotion.discount_type === 'percentage') {
+          const discountPercent = Number(promotion.discount_value) || 0;
+          discountValue = (subTotal * discountPercent) / 100;
+        } else {
+          discountValue = Number(promotion.discount_value) || 0;
+        }
+        maxDiscount = Number(promotion.max_discount) || 0;
+      }
+
+      // Apply max discount limit if specified
+      if (maxDiscount > 0 && discountValue > maxDiscount) {
+        discountValue = maxDiscount;
+      }
+
+      // Set the discount and promotion
+      if (discountValue > 0) {
+        const finalDiscount = isNaN(discountValue) ? 0 : Math.floor(discountValue);
+        setDiscountAmount(finalDiscount);
+        setAppliedPromotion({
+          ...promotion,
+          code: promotion?.code || 'Applied',
+          actualDiscount: finalDiscount,
+          maxDiscount: maxDiscount
+        });
+        console.log('Promotion applied! Discount:', finalDiscount, 'Max:', maxDiscount);
+      } else {
+        console.warn('No valid discount found in:', validationData);
+      }
+    } catch (err) {
+      console.error('Error applying promotion:', err);
+      setDiscountAmount(0);
+      setAppliedPromotion(null);
+    }
+  };
 
   const handleRemoveItem = (id) => {
     const updated = cartItems.filter(item => item.id !== id);
@@ -128,7 +190,9 @@ export default function Cart() {
       shoeModel: shoeModel,
       items: orderItems, // ส่งชุดข้อมูลสินค้ารายตัวไปให้ระบบตัดสต๊อก
       size: cartItems[0]?.size || '42',
-      totalAmount: totalAmount,
+      totalAmount: Math.floor(totalAmount),
+      discountAmount: Math.floor(discountAmount),
+      appliedPromotion: appliedPromotion?.code || null,
       paymentMethod: paymentMethod
     };
 
@@ -447,18 +511,37 @@ export default function Cart() {
                 สรุปรายการสั่งซื้อ
               </h3>
 
+              {/* Promotions Section */}
+              <div style={{ marginBottom: '24px' }}>
+                <PromotionsList onApplyPromo={handleApplyPromotion} cartTotal={subTotal} />
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#8C7A6B', fontSize: '14px' }}>
                   <span>ยอดรวมสินค้า</span>
-                  <span style={{ fontWeight: '800', color: '#5C4E43' }}>฿{subTotal.toLocaleString()}</span>
+                  <span style={{ fontWeight: '800', color: '#5C4E43' }}>฿{isNaN(subTotal) ? '0' : subTotal.toLocaleString()}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#8C7A6B', fontSize: '14px' }}>
                   <span>ค่าจัดส่งพัสดุ</span>
-                  <span style={{ fontWeight: '800', color: '#5C4E43' }}>฿{shippingFee.toLocaleString()}</span>
+                  <span style={{ fontWeight: '800', color: '#5C4E43' }}>฿{isNaN(shippingFee) ? '0' : shippingFee.toLocaleString()}</span>
                 </div>
+                {discountAmount > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderLeft: '3px solid #10b981', paddingLeft: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981', fontSize: '14px' }}>
+                      <span>ส่วนลดจากโปรโมชั่น</span>
+                      <span style={{ fontWeight: '800', color: '#10b981' }}>-฿{isNaN(discountAmount) ? '0' : Math.floor(discountAmount).toLocaleString()}</span>
+                    </div>
+                    {appliedPromotion?.maxDiscount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#0891b2', fontSize: '12px', fontStyle: 'italic' }}>
+                        <span>ลดได้สูงสุด</span>
+                        <span>฿{Math.floor(appliedPromotion.maxDiscount).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ borderTop: '1px dashed #E8E1D9', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '14px', fontWeight: '800', color: '#5C4E43' }}>ยอดชำระสุทธิ</span>
-                  <span style={{ fontSize: '24px', fontWeight: '900', color: '#5C4E43' }}>฿{totalAmount.toLocaleString()}</span>
+                  <span style={{ fontSize: '24px', fontWeight: '900', color: '#5C4E43' }}>฿{isNaN(totalAmount) ? '0' : Math.floor(totalAmount).toLocaleString()}</span>
                 </div>
               </div>
 

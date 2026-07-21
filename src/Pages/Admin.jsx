@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ManageReviews from './ManageReviews';
 import ManagePromotions from './ManagePromotions';
+import ProductDiscountManager from '../components/ProductDiscountManager';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -72,6 +73,8 @@ const getThaiStatus = (paymentStatus, orderStatus) => {
 export default function Admin() {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
+  const [discountProduct, setDiscountProduct] = useState(null);
+  const [isDiscountManagerOpen, setIsDiscountManagerOpen] = useState(false);
   const [users, setUsers] = useState([]); // 🌟 เพิ่มสเตตัสเก็บข้อมูลผู้ใช้
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
@@ -81,7 +84,7 @@ export default function Admin() {
   const [updatingId, setUpdatingId] = useState(null);
 
   const [productModal, setProductModal] = useState({
-    isOpen: false, mode: 'add', id: null, name: '', brand: 'adidas', price: '', sku: '', color: '', releaseDate: '', stock: initialStock, image: '', isCustomBrand: false
+    isOpen: false, mode: 'add', id: null, name: '', brand: 'adidas', price: '', sku: '', color: '', releaseDate: '', stock: initialStock, image: '', discountType: 'fixed', discountValue: 0, isCustomBrand: false
   });
 
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, targetId: null, targetName: '' });
@@ -100,7 +103,14 @@ export default function Admin() {
       if (ordersResponse.ok) setOrders(await ordersResponse.json());
 
       const productsResponse = await fetch(`${API_URL}/products`);
-      if (productsResponse.ok) setProducts(await productsResponse.json());
+      if (productsResponse.ok) {
+        const productsPayload = await productsResponse.json();
+        setProducts(productsPayload.map(prod => ({
+          ...prod,
+          discountType: prod.discount_type || prod.discountType || 'fixed',
+          discountValue: Number(prod.discount_value ?? prod.discountValue ?? 0)
+        })));
+      }
 
       // 🌟 ดึงข้อมูลรายชื่อผู้ใช้งานในระบบ
       const usersResponse = await fetch(`${API_URL}/users`, { headers });
@@ -195,7 +205,7 @@ export default function Admin() {
     const defaultBrand = uniqueBrands[0] || 'adidas';
     setProductModal({
       isOpen: true, mode: 'add', id: null, name: '', brand: defaultBrand, price: '', 
-      sku: generateSKU(defaultBrand), color: '', releaseDate: '', stock: { ...initialStock }, image: '', isCustomBrand: false
+      sku: generateSKU(defaultBrand), color: '', releaseDate: '', stock: { ...initialStock }, image: '', discountType: 'fixed', discountValue: 0, isCustomBrand: false
     });
   };
 
@@ -212,7 +222,7 @@ export default function Admin() {
     const fetchedReleaseDate = product.releaseDate || product.release_date || '';
 
     setProductModal({
-      isOpen: true, mode: 'edit', id: product.id, name: product.name || '', brand: product.brand || uniqueBrands[0], price: product.price || '', sku: product.sku || '', color: fetchedColor, releaseDate: fetchedReleaseDate, stock: parsedStock, image: product.image || '', isCustomBrand: false
+      isOpen: true, mode: 'edit', id: product.id, name: product.name || '', brand: product.brand || uniqueBrands[0], price: product.price || '', sku: product.sku || '', color: fetchedColor, releaseDate: fetchedReleaseDate, stock: parsedStock, image: product.image || '', discountType: product.discount_type || product.discountType || 'fixed', discountValue: Number(product.discount_value ?? product.discountValue ?? 0), isCustomBrand: false
     });
   };
 
@@ -227,7 +237,16 @@ export default function Admin() {
     });
 
     const payload = {
-      name: productModal.name, brand: productModal.brand, price: Number(productModal.price) || 0, image: productModal.image, sku: productModal.sku, color: productModal.color, releaseDate: productModal.releaseDate || '-', stock: finalStock
+      name: productModal.name,
+      brand: productModal.brand,
+      price: Number(productModal.price) || 0,
+      image: productModal.image,
+      sku: productModal.sku,
+      color: productModal.color,
+      releaseDate: productModal.releaseDate || '-',
+      stock: finalStock,
+      discountType: productModal.discountType,
+      discountValue: Number(productModal.discountValue) || 0
     };
 
     const url = productModal.mode === 'add' ? `${API_URL}/products` : `${API_URL}/products/${productModal.id}`;
@@ -261,6 +280,39 @@ export default function Admin() {
       fetchData(); 
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) { setError(err.message); setDeleteConfirm({ isOpen: false, targetId: null, targetName: '' }); }
+  };
+
+  const handleOpenDiscountManager = (product) => {
+    setDiscountProduct(product);
+    setIsDiscountManagerOpen(true);
+  };
+
+  const handleCloseDiscountManager = () => {
+    setDiscountProduct(null);
+    setIsDiscountManagerOpen(false);
+  };
+
+  const handleSaveDiscount = async ({ discountType, discountValue }) => {
+    setError(null);
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch(`${API_URL}/products/${discountProduct.id}/discount`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ discountType, discountValue })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'อัปเดตส่วนลดไม่สำเร็จ');
+
+      setSuccess('ตั้งส่วนลดสินค้าสำเร็จแล้ว');
+      setIsDiscountManagerOpen(false);
+      setDiscountProduct(null);
+      fetchData();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   // กรองข้อมูลค้นหา
@@ -481,6 +533,22 @@ export default function Admin() {
                       ))}
                     </div>
                   </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>ชนิดส่วนลด</label>
+                      <select value={productModal.discountType} onChange={e => setProductModal({...productModal, discountType: e.target.value})} style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', backgroundColor: '#ffffff', outline: 'none', color: '#5C4E43' }}>
+                        <option value="fixed">ลดเป็นบาท</option>
+                        <option value="percentage">ลดเป็นเปอร์เซ็นต์</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>มูลค่าส่วนลด</label>
+                      <input type="number" min="0" value={productModal.discountValue} onChange={e => setProductModal({...productModal, discountValue: e.target.value})} style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43' }} placeholder="0" />
+                      <div style={{ fontSize: '11px', color: '#8C7A6B', marginTop: '4px' }}>
+                        {productModal.discountType === 'percentage' ? 'เช่น 20 = ลด 20%' : 'เช่น 300 = ลด 300 บาท'}
+                      </div>
+                    </div>
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
                     <button type="button" onClick={() => setProductModal({...productModal, isOpen: false})} style={{ padding: '12px 24px', border: '1px solid #8C7A6B', color: '#8C7A6B', backgroundColor: '#ffffff', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer' }}>ยกเลิก</button>
                     <button type="submit" style={{ padding: '12px 24px', border: 'none', backgroundColor: '#8C7A6B', color: '#ffffff', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer' }}>บันทึกลงระบบ</button>
@@ -505,6 +573,7 @@ export default function Admin() {
                       <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '900', color: '#5C4E43' }}>ชื่อสินค้า</th>
                       <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '900', color: '#5C4E43' }}>แบรนด์</th>
                       <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '900', color: '#5C4E43' }}>ราคา</th>
+                      <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '900', color: '#5C4E43' }}>ส่วนลด</th>
                       <th style={{ padding: '18px 24px', fontSize: '13px', fontWeight: '900', color: '#5C4E43' }}>จัดการ</th>
                     </tr>
                   </thead>
@@ -524,9 +593,17 @@ export default function Admin() {
                           </td>
                           <td style={{ padding: '20px 24px', fontSize: '14px', fontWeight: 'bold', color: '#8C7A6B' }}>{prod.brand}</td>
                           <td style={{ padding: '20px 24px', fontSize: '15px', fontWeight: '900', color: '#d97777' }}>฿{prod.price.toLocaleString()}</td>
+                          <td style={{ padding: '20px 24px', fontSize: '14px', fontWeight: '700', color: prod.discountValue > 0 ? '#047857' : '#8C7A6B' }}>
+                            {prod.discountValue > 0 ? (
+                              <span>{prod.discountType === 'percentage' ? `${prod.discountValue}%` : `฿${prod.discountValue.toLocaleString()}`}</span>
+                            ) : (
+                              <span style={{ color: '#8C7A6B' }}>ไม่มีส่วนลด</span>
+                            )}
+                          </td>
                           <td style={{ padding: '20px 24px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                               <button type="button" onClick={() => openEditProductModal(prod)} style={{ padding: '6px 12px', border: '1px solid #8C7A6B', color: '#8C7A6B', backgroundColor: '#ffffff', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>แก้ไข</button>
+                              <button type="button" onClick={() => handleOpenDiscountManager(prod)} style={{ padding: '6px 12px', border: '1px solid #2563EB', backgroundColor: '#ffffff', color: '#2563EB', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>ตั้งส่วนลด</button>
                               <button type="button" onClick={() => setDeleteConfirm({ isOpen: true, targetId: prod.id, targetName: prod.name })} style={{ padding: '6px 12px', border: '1px solid #d97777', backgroundColor: '#ffffff', color: '#d97777', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>ลบ</button>
                             </div>
                           </td>
@@ -692,6 +769,14 @@ export default function Admin() {
               </div>
             </div>
           </div>
+        )}
+
+        {isDiscountManagerOpen && (
+          <ProductDiscountManager
+            product={discountProduct}
+            onClose={handleCloseDiscountManager}
+            onSave={handleSaveDiscount}
+          />
         )}
 
       </div>

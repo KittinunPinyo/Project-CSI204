@@ -50,44 +50,46 @@ const ManageReviews = () => {
   }
 
   return (
-    <div style={{ width: '100%' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-          <span style={{ fontSize: '24px' }}>⭐</span>
-          <h2 style={{ fontSize: '24px', fontWeight: '900', margin: 0, letterSpacing: '0.5px' }}>
-            จัดการรีวิวจากลูกค้า
-          </h2>
+    <div style={{ width: '100%', minHeight: '100vh', backgroundColor: '#F8F6F3', padding: '32px 24px' }}>
+      <div style={{ maxWidth: '1180px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ marginBottom: '28px', backgroundColor: '#ffffff', border: '1px solid #E8E1D9', borderRadius: '20px', padding: '28px 32px', boxShadow: '0 8px 20px rgba(92, 78, 67, 0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '24px' }}>⭐</span>
+            <h2 style={{ fontSize: '24px', fontWeight: '900', margin: 0, letterSpacing: '0.5px', color: '#5C4E43' }}>
+              จัดการรีวิวจากลูกค้า
+            </h2>
+          </div>
+          <p style={{ color: '#64748b', margin: '8px 0 0 0', fontSize: '14px' }}>
+            จำนวนรีวิวทั้งหมด: <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{reviews.length}</span> รายการ
+          </p>
         </div>
-        <p style={{ color: '#64748b', margin: '8px 0 0 0', fontSize: '14px' }}>
-          จำนวนรีวิวทั้งหมด: <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{reviews.length}</span> รายการ
-        </p>
-      </div>
 
-      {reviews.length === 0 ? (
-        <div style={{
-          backgroundColor: '#f8fafc',
-          border: '2px dashed #cbd5e1',
-          borderRadius: '12px',
-          padding: '56px 28px',
-          textAlign: 'center'
-        }}>
-          <span style={{ fontSize: '44px', display: 'block', marginBottom: '14px' }}>📝</span>
-          <p style={{ color: '#64748b', fontSize: '15px', margin: 0 }}>ยังไม่มีรีวิวในระบบ</p>
-          <p style={{ color: '#94a3b8', fontSize: '14px', margin: '8px 0 0 0' }}>รีวิวจากลูกค้าจะปรากฏที่นี่เมื่อมีการส่งรีวิว</p>
-        </div>
-      ) : (
+        {reviews.length === 0 ? (
+          <div style={{
+            backgroundColor: '#ffffff',
+            border: '1px dashed #E8E1D9',
+            borderRadius: '20px',
+            padding: '56px 28px',
+            textAlign: 'center',
+            boxShadow: '0 8px 20px rgba(92, 78, 67, 0.04)'
+          }}>
+            <span style={{ fontSize: '44px', display: 'block', marginBottom: '14px' }}>📝</span>
+            <p style={{ color: '#64748b', fontSize: '15px', margin: 0 }}>ยังไม่มีรีวิวในระบบ</p>
+            <p style={{ color: '#94a3b8', fontSize: '14px', margin: '8px 0 0 0' }}>รีวิวจากลูกค้าจะปรากฏที่นี่เมื่อมีการส่งรีวิว</p>
+          </div>
+        ) : (
         <div style={{ display: 'grid', gap: '18px' }}>
           {reviews.map((review) => (
             <div 
               key={review.id}
               style={{
                 backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '10px',
-                padding: '18px',
+                border: '1px solid #E8E1D9',
+                borderRadius: '20px',
+                padding: '22px',
                 transition: 'all 0.3s ease',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+                boxShadow: '0 8px 20px rgba(92, 78, 67, 0.05)'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
@@ -132,12 +134,22 @@ const ManageReviews = () => {
               </div>
 
               {/* Comment Section */}
-              <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '6px', marginBottom: '12px', borderLeft: '4px solid #3b82f6' }}>
-                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', marginBottom: '6px' }}>ความเห็นของลูกค้า</div>
-                <p style={{ color: '#1e293b', fontSize: '14px', lineHeight: '1.5', margin: 0 }}>
+              <div style={{ backgroundColor: '#F8F6F3', padding: '14px', borderRadius: '14px', marginBottom: '16px', borderLeft: '4px solid #8C7A6B' }}>
+                <div style={{ fontSize: '11px', color: '#5C4E43', fontWeight: '600', marginBottom: '6px' }}>ความเห็นของลูกค้า</div>
+                <p style={{ color: '#334155', fontSize: '14px', lineHeight: '1.75', margin: 0 }}>
                   {review.comment}
                 </p>
               </div>
+
+              {review.image && (
+                <div style={{ marginBottom: '14px', textAlign: 'center' }}>
+                  <img
+                    src={review.image.startsWith('http') ? review.image : `http://localhost:5000${review.image}`}
+                    alt="Review image"
+                    style={{ width: '100%', maxHeight: '260px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                  />
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
@@ -263,20 +275,8 @@ const ManageReviews = () => {
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
+  </div>
   );
 };
 

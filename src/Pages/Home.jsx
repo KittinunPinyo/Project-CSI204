@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import PromotionsList from '../components/PromotionsList';
 
 export default function Home({ filteredProducts, currentUser, handleAddToCart, wishlist, toggleWishlist }) {
   const navigate = useNavigate();
@@ -14,6 +13,16 @@ export default function Home({ filteredProducts, currentUser, handleAddToCart, w
     const matchPrice = Number(product.price) <= maxPrice;
     return matchBrand && matchPrice;
   });
+
+  const getProductDisplayPrice = (product) => {
+    const base = Number(product.price) || 0;
+    const type = product.discountType || product.discount_type || 'fixed';
+    const value = Number(product.discountValue ?? product.discount_value ?? 0);
+    if (type === 'percentage' && value > 0) {
+      return Math.max(0, Math.round(base * (1 - value / 100)));
+    }
+    return Math.max(0, Math.round(base - value));
+  };
 
   return (
     <div style={{ backgroundColor: '#F8F6F3', minHeight: '100vh', paddingBottom: '50px' }}>
@@ -65,8 +74,6 @@ export default function Home({ filteredProducts, currentUser, handleAddToCart, w
         </div>
         {/* ========================================== */}
 
-        <div className="mb-4"><PromotionsList /></div>
-
         <div className="row g-4">
           {displayProducts.length > 0 ? (
             displayProducts.map(product => {
@@ -85,7 +92,16 @@ export default function Home({ filteredProducts, currentUser, handleAddToCart, w
                     <div className="card-body d-flex flex-column">
                       <div className="small text-uppercase mb-1" style={{ fontSize: '11px', color: '#8C7A6B' }}>{product.brand || 'No Brand'}</div>
                       <Link to={`/product/${product.id}`} className="text-decoration-none" style={{ color: '#5C4E43' }}><h6 className="fw-bold mb-2">{product.name}</h6></Link>
-                      <h6 className="fw-bold mt-auto mb-3" style={{ color: '#5C4E43' }}>฿{Number(product.price).toLocaleString()}</h6>
+                      <div className="mb-2">
+                        {Number(product.discountValue ?? product.discount_value ?? 0) > 0 ? (
+                          <div>
+                            <span style={{ fontSize: '12px', textDecoration: 'line-through', color: '#A69B91', marginRight: '8px' }}>฿{Number(product.price).toLocaleString()}</span>
+                            <span style={{ fontSize: '16px', fontWeight: '900', color: '#d97777' }}>฿{getProductDisplayPrice(product).toLocaleString()}</span>
+                          </div>
+                        ) : (
+                          <h6 className="fw-bold mt-0 mb-0" style={{ color: '#5C4E43' }}>฿{Number(product.price).toLocaleString()}</h6>
+                        )}
+                      </div>
                       <button className="btn w-100 rounded-pill fw-bold text-white" style={{ backgroundColor: '#8C7A6B', fontSize: '12px', padding: '10px' }} onClick={() => navigate(`/product/${product.id}`)}>ดูสินค้า</button>
                     </div>
                   </div>

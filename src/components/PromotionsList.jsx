@@ -1,16 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const PromotionsList = ({ onApplyPromo }) => {
+const PromotionsList = ({ onApplyPromo, cartTotal = 0, isAdmin = false }) => {
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [promoCode, setPromoCode] = useState('');
   const [validationResult, setValidationResult] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Admin Management State
+  const [adminPromotions, setAdminPromotions] = useState([]);
+  const [showAdminForm, setShowAdminForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [formData, setFormData] = useState({
+    code: '',
+    description: '',
+    discountType: 'percentage',
+    discountValue: 0,
+    maxDiscount: null,
+    maxUses: null,
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: '',
+    isFlashSale: false,
+    is_active: true
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [adminMessage, setAdminMessage] = useState(null);
 
   useEffect(() => {
     fetchPromotions();
-  }, []);
+    if (isAdmin) {
+      fetchAdminPromotions();
+    }
+  }, [isAdmin]);
 
   const fetchPromotions = async () => {
     try {
@@ -20,6 +42,19 @@ const PromotionsList = ({ onApplyPromo }) => {
     } catch (error) {
       console.error('Error fetching promotions:', error);
       setLoading(false);
+    }
+  };
+
+  const fetchAdminPromotions = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:5000/api/admin/promotions', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdminPromotions(response.data);
+    } catch (error) {
+      console.error('Error fetching admin promotions:', error);
+      setAdminMessage({ type: 'error', text: 'ไม่สามารถดึงข้อมูลโปรโมชั่น' });
     }
   };
 
@@ -37,7 +72,7 @@ const PromotionsList = ({ onApplyPromo }) => {
 
       setValidationResult(response.data);
       if (response.data.success && onApplyPromo) {
-        onApplyPromo(response.data.promotion);
+        onApplyPromo(response.data);
       }
     } catch (error) {
       setValidationResult({
@@ -48,11 +83,430 @@ const PromotionsList = ({ onApplyPromo }) => {
 
   const applyCoupon = (code) => {
     setPromoCode(code);
-    handleValidatePromo();
+    handleValidatePromo(cartTotal);
+  };
+
+  // Admin Functions
+  const handleFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmitPromo = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const url = editingId 
+        ? `http://localhost:5000/api/admin/promotions/${editingId}`
+        : 'http://localhost:5000/api/admin/promotions';
+      
+      const method = editingId ? 'put' : 'post';
+      
+      // แปลงค่าสตริงว่างเป็น null
+      const dataToSend = {
+        ...formData,
+        maxDiscount: formData.maxDiscount ? Number(formData.maxDiscount) : null,
+        maxUses: formData.maxUses ? Number(formData.maxUses) : null
+      };
+
+      const response = await axios({
+        method,
+        url,
+        data: dataToSend,
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setAdminMessage({ type: 'success', text: editingId ? 'แก้ไขโปรโมชั่นสำเร็จ' : 'สร้างโปรโมชั่นสำเร็จ' });
+      resetForm();
+      fetchAdminPromotions();
+    } catch (error) {
+      setAdminMessage({ 
+        type: 'error', 
+        text: error.response?.data?.error || 'เกิดข้อผิดพลาด' 
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditPromo = (promo) => {
+    setFormData({
+      code: promo.code,
+      description: promo.description,
+      discountType: promo.discount_type,
+      discountValue: promo.discount_value,
+      maxDiscount: promo.max_discount || null,
+      maxUses: promo.max_uses,
+      startDate: promo.start_date?.split('T')[0] || '',
+      endDate: promo.end_date?.split('T')[0] || '',
+      isFlashSale: promo.is_flash_sale || false,
+      is_active: promo.is_active
+    });
+    setEditingId(promo.id);
+    setShowAdminForm(true);
+  };
+
+  const handleDeletePromo = async (id) => {
+    if (!window.confirm('ยืนยันการลบโปรโมชั่นนี้?')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/admin/promotions/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAdminMessage({ type: 'success', text: 'ลบโปรโมชั่นสำเร็จ' });
+      fetchAdminPromotions();
+    } catch (error) {
+      setAdminMessage({ type: 'error', text: 'ไม่สามารถลบโปรโมชั่น' });
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      code: '',
+      description: '',
+      discountType: 'percentage',
+      discountValue: 0,
+      maxDiscount: null,
+      maxUses: null,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: '',
+      isFlashSale: false,
+      is_active: true
+    });
+    setEditingId(null);
+    setShowAdminForm(false);
   };
 
   return (
     <div style={{ width: '100%' }}>
+      {/* Admin Management Section */}
+      {isAdmin && (
+        <div style={{ marginBottom: '24px', backgroundColor: '#f0f9ff', border: '2px solid #0284c7', borderRadius: '10px', padding: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h3 style={{ margin: 0, color: '#0c4a6e', fontSize: '16px', fontWeight: '700' }}>⚙️ จัดการโปรโมชั่น</h3>
+            <button
+              onClick={() => setShowAdminForm(!showAdminForm)}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#0284c7',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '13px',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#0369a1'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#0284c7'}
+            >
+              {showAdminForm ? '✕ ปิด' : '+ เพิ่มโปรโมชั่น'}
+            </button>
+          </div>
+
+          {adminMessage && (
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: '6px',
+              marginBottom: '12px',
+              backgroundColor: adminMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
+              color: adminMessage.type === 'success' ? '#166534' : '#991b1b',
+              border: `1px solid ${adminMessage.type === 'success' ? '#86efac' : '#fca5a5'}`,
+              fontSize: '13px'
+            }}>
+              {adminMessage.type === 'success' ? '✅' : '❌'} {adminMessage.text}
+            </div>
+          )}
+
+          {showAdminForm && (
+            <form onSubmit={handleSubmitPromo} style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e0e7ff',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '12px'
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <input
+                  type="text"
+                  name="code"
+                  placeholder="รหัสโปรโมชั่น"
+                  value={formData.code}
+                  onChange={handleFormChange}
+                  required
+                  style={{
+                    padding: '8px 10px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    fontFamily: 'inherit'
+                  }}
+                />
+                <select
+                  name="discountType"
+                  value={formData.discountType}
+                  onChange={handleFormChange}
+                  style={{
+                    padding: '8px 10px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  <option value="percentage">ร้อยละ (%)</option>
+                  <option value="fixed">จำนวนเงิน (฿)</option>
+                </select>
+              </div>
+
+              <textarea
+                name="description"
+                placeholder="รายละเอียดโปรโมชั่น"
+                value={formData.description}
+                onChange={handleFormChange}
+                required
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  fontFamily: 'inherit',
+                  marginBottom: '12px',
+                  minHeight: '60px'
+                }}
+              />
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <input
+                  type="number"
+                  name="discountValue"
+                  placeholder="ค่าส่วนลด"
+                  value={formData.discountValue}
+                  onChange={handleFormChange}
+                  required
+                  step="0.01"
+                  style={{
+                    padding: '8px 10px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    fontFamily: 'inherit'
+                  }}
+                />
+                <input
+                  type="number"
+                  name="maxDiscount"
+                  placeholder="ลดได้สูงสุด (บาท - ไม่กำหนด = ไม่มีข้อจำกัด)"
+                  value={formData.maxDiscount || ''}
+                  onChange={handleFormChange}
+                  step="0.01"
+                  style={{
+                    padding: '8px 10px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    fontFamily: 'inherit'
+                  }}
+                />
+                <input
+                  type="number"
+                  name="maxUses"
+                  placeholder="จำนวนครั้งสูงสุด (ไม่กำหนด = ไม่มีข้อจำกัด)"
+                  value={formData.maxUses || ''}
+                  onChange={handleFormChange}
+                  style={{
+                    padding: '8px 10px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>วันเริ่มต้น</label>
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={formData.startDate}
+                    onChange={handleFormChange}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>วันสิ้นสุด (ไม่กำหนด = ไม่มีวันสิ้นสุด)</label>
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={formData.endDate}
+                    onChange={handleFormChange}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginBottom: '12px', padding: '8px 10px', backgroundColor: '#f0f9ff', borderRadius: '4px', borderLeft: '3px solid #0284c7' }}>
+                <input
+                  type="checkbox"
+                  name="isFlashSale"
+                  checked={formData.isFlashSale}
+                  onChange={handleFormChange}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <span style={{ fontWeight: '600', color: '#0c4a6e' }}>เปิดใช้งาน Flash Sale</span>
+              </label>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#e2e8f0',
+                    color: '#475569',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '13px'
+                  }}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    fontWeight: '600',
+                    fontSize: '13px'
+                  }}
+                >
+                  {editingId ? '💾 บันทึกการแก้ไข' : '➕ สร้างโปรโมชั่น'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Admin Promotions List */}
+          <div>
+            <h4 style={{ margin: '12px 0 8px 0', color: '#0c4a6e', fontSize: '14px', fontWeight: '600' }}>
+              โปรโมชั่นทั้งหมด ({adminPromotions.length})
+            </h4>
+            {adminPromotions.length === 0 ? (
+              <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>ยังไม่มีโปรโมชั่น</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                {adminPromotions.map(promo => (
+                  <div key={promo.id} style={{
+                    backgroundColor: '#ffffff',
+                    border: `2px solid ${promo.is_active ? '#86efac' : '#fca5a5'}`,
+                    borderRadius: '6px',
+                    padding: '10px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '12px'
+                  }}>
+                    <div>
+                      <strong style={{ color: '#f59e0b' }}>{promo.code}</strong>
+                      <span style={{ marginLeft: '8px', color: '#64748b' }}>
+                        {promo.discount_type === 'percentage' ? `${promo.discount_value}%` : `฿${Number(promo.discount_value).toLocaleString('th-TH')}`}
+                      </span>
+                      {promo.max_discount && (
+                        <span style={{ marginLeft: '8px', color: '#ef4444', fontSize: '11px', fontWeight: '600' }}>
+                          (สูงสุด ฿{Number(promo.max_discount).toLocaleString('th-TH')})
+                        </span>
+                      )}
+                      <span style={{ marginLeft: '8px', color: '#64748b', fontSize: '11px' }}>
+                        ({promo.current_uses || 0}/{promo.max_uses || '∞'})
+                      </span>
+                      <span style={{
+                        marginLeft: '8px',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        backgroundColor: promo.is_active ? '#dcfce7' : '#fee2e2',
+                        color: promo.is_active ? '#166534' : '#991b1b',
+                        fontSize: '11px'
+                      }}>
+                        {promo.is_active ? '✓ เปิดใช้' : '✕ ปิด'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={() => handleEditPromo(promo)}
+                        style={{
+                          padding: '4px 10px',
+                          backgroundColor: '#3b82f6',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#2563eb'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#3b82f6'}
+                      >
+                        แก้ไข
+                      </button>
+                      <button
+                        onClick={() => handleDeletePromo(promo.id)}
+                        style={{
+                          padding: '4px 10px',
+                          backgroundColor: '#ef4444',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#dc2626'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#ef4444'}
+                      >
+                        ลบ
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div 
         onClick={() => setIsExpanded(!isExpanded)}
@@ -129,7 +583,7 @@ const PromotionsList = ({ onApplyPromo }) => {
                 }}
               />
               <button
-                onClick={() => handleValidatePromo()}
+                onClick={() => handleValidatePromo(cartTotal)}
                 style={{
                   padding: '10px 20px',
                   backgroundColor: '#000000',
@@ -166,7 +620,12 @@ const PromotionsList = ({ onApplyPromo }) => {
                 {validationResult.error || validationResult.message}
                 {validationResult.promotion && !validationResult.error && (
                   <div style={{ marginTop: '6px', fontSize: '12px', fontWeight: 'normal' }}>
-                    ลดได้: ฿{Number(validationResult.promotion.discountAmount).toLocaleString('th-TH')}
+                    <div>ลดได้: ฿{Number(validationResult.promotion.discountAmount).toLocaleString('th-TH')}</div>
+                    {validationResult.promotion.maxDiscount && validationResult.promotion.maxDiscount > 0 && (
+                      <div style={{ marginTop: '4px', opacity: 0.8 }}>
+                        ⚠️ ลดได้สูงสุด: ฿{Number(validationResult.promotion.maxDiscount).toLocaleString('th-TH')}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

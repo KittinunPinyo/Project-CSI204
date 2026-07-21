@@ -28,6 +28,16 @@ export default function ProductDetail({ products, currentUser, handleAddToCart }
   // หาข้อมูลสินค้าจาก ID
   const product = products.find(p => p.id === id || p.id === Number(id));
 
+  const computeDiscountedPrice = (item) => {
+    const base = Number(item.price) || 0;
+    const type = item.discountType || item.discount_type || 'fixed';
+    const value = Number(item.discountValue ?? item.discount_value ?? 0);
+    if (type === 'percentage' && value > 0) {
+      return Math.max(0, Math.round(base * (1 - value / 100)));
+    }
+    return Math.max(0, Math.round(base - value));
+  };
+
   if (!product) {
     return <div className="text-center py-5 mt-5 fw-bold" style={{ color: '#8C7A6B' }}>กำลังโหลดข้อมูล... หรือไม่พบสินค้านี้</div>;
   }
@@ -63,7 +73,13 @@ export default function ProductDetail({ products, currentUser, handleAddToCart }
       showToast("กรุณาเลือกไซส์ก่อนเพิ่มลงตะกร้าครับ", "error");
       return;
     }
-    handleAddToCart({ ...product, selectedSize: `EU ${selectedSize.EU}`, price: product.price });
+    const originalPrice = Number(product.price) || 0;
+    handleAddToCart({
+      ...product,
+      selectedSize: `EU ${selectedSize.EU}`,
+      originalPrice,
+      price: computeDiscountedPrice(product)
+    });
     // 🌟 แจ้งเตือนเมื่อเพิ่มลงตะกร้าสำเร็จ
     showToast("เพิ่มสินค้าลงตะกร้าเรียบร้อยแล้ว!", "success");
   };
@@ -124,9 +140,17 @@ export default function ProductDetail({ products, currentUser, handleAddToCart }
               
               <h2 className="fw-bold mb-3" style={{ color: '#5C4E43' }}>{productDetails.model}</h2>
 
-              <h3 className="fw-bold mb-4" style={{ color: '#5C4E43' }}>
-                ฿ {Number(product.price).toLocaleString('th-TH')}
-              </h3>
+              {Number(product.discountValue ?? product.discount_value ?? 0) > 0 ? (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', color: '#A69B91', textDecoration: 'line-through' }}>฿{Number(product.price).toLocaleString('th-TH')}</div>
+                  <h3 className="fw-bold" style={{ color: '#5C4E43' }}>฿{computeDiscountedPrice(product).toLocaleString('th-TH')}</h3>
+                  <div style={{ fontSize: '13px', color: '#10B981' }}>
+                    ลด{product.discountType === 'percentage' || product.discount_type === 'percentage' ? `${Number(product.discountValue ?? product.discount_value ?? 0)}%` : `฿${Number(product.discountValue ?? product.discount_value ?? 0).toLocaleString('th-TH')}`} จากราคาเดิม
+                  </div>
+                </div>
+              ) : (
+                <h3 className="fw-bold mb-4" style={{ color: '#5C4E43' }}>฿{Number(product.price).toLocaleString('th-TH')}</h3>
+              )}
 
               {/* เลือกสี */}
               {colorVariants.length > 1 && (

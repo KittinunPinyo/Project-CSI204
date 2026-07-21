@@ -13,9 +13,11 @@ const ManagePromotions = () => {
     description: '',
     discountType: 'percentage',
     discountValue: '',
+    maxDiscount: '',
     maxUses: '',
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
+    isFlashSale: false,
     isActive: true
   });
 
@@ -45,9 +47,11 @@ const ManagePromotions = () => {
       description: '',
       discountType: 'percentage',
       discountValue: '',
+      maxDiscount: '',
       maxUses: '',
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
+      isFlashSale: false,
       isActive: true
     });
     setEditingId(null);
@@ -88,9 +92,11 @@ const ManagePromotions = () => {
       description: promo.description,
       discountType: promo.discount_type,
       discountValue: promo.discount_value,
+      maxDiscount: promo.max_discount || '',
       maxUses: promo.max_uses || '',
       startDate: promo.start_date ? promo.start_date.split('T')[0] : '',
       endDate: promo.end_date ? promo.end_date.split('T')[0] : '',
+      isFlashSale: promo.is_flash_sale || false,
       isActive: promo.is_active
     });
     setEditingId(promo.id);
@@ -269,6 +275,28 @@ const ManagePromotions = () => {
                 />
               </div>
 
+              {/* Max Discount */}
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
+                  ลดได้ไม่เกิน (บาท)
+                </label>
+                <input
+                  type="number"
+                  value={formData.maxDiscount}
+                  onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
+                  placeholder="ไม่มีขีดจำกัด"
+                  step="0.01"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+
               {/* Max Uses */}
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
@@ -355,8 +383,18 @@ const ManagePromotions = () => {
                 </select>
               </div>
 
-              {/* Placeholder */}
-              <div></div>
+              {/* Flash Sale */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#475569' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.isFlashSale}
+                    onChange={(e) => setFormData({ ...formData, isFlashSale: e.target.checked })}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span>Flash Sale</span>
+                </label>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
@@ -394,10 +432,9 @@ const ManagePromotions = () => {
               </button>
             </div>
           </form>
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Promotions List */}
       {promotions.length === 0 ? (
         <div style={{
           backgroundColor: '#f8fafc',
@@ -481,6 +518,12 @@ const ManagePromotions = () => {
                   <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>สถานะ</div>
                   <div style={{ fontSize: '13px', color: '#1e293b', marginTop: '4px' }}>
                     {promo.is_active ? '✅ ใช้งาน' : '⛔ ปิดใช้งาน'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ลดได้สูงสุด</div>
+                  <div style={{ fontSize: '13px', color: '#059669', marginTop: '4px', fontWeight: '600' }}>
+                    {promo.max_discount ? `฿${Number(promo.max_discount).toLocaleString('th-TH')}` : 'ไม่มีขีดจำกัด'}
                   </div>
                 </div>
                 <div>

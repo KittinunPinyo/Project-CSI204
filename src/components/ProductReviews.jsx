@@ -5,6 +5,8 @@ const ProductReviews = ({ productId }) => {
   const [reviews, setReviews] = useState([]);
   const [comment, setComment] = useState('');
   const [rating, setRating] = useState(5);
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,11 +36,19 @@ const ProductReviews = ({ productId }) => {
 
     try {
       setIsSubmitting(true);
+      const formData = new FormData();
+      formData.append('productId', productId);
+      formData.append('rating', rating);
+      formData.append('comment', comment);
+      if (image) {
+        formData.append('image', image);
+      }
+
       const config = {
         headers: { Authorization: `Bearer ${token}` }
       };
 
-      await axios.post('http://localhost:5000/api/reviews', { productId, rating, comment }, config);
+      await axios.post('http://localhost:5000/api/reviews', formData, config);
       
       // รีโหลดรีวิวทันที
       const response = await axios.get(`http://localhost:5000/api/reviews/product/${productId}`);
@@ -46,6 +56,8 @@ const ProductReviews = ({ productId }) => {
       
       setComment('');
       setRating(5);
+      setImage(null);
+      setImagePreview(null);
     } catch (error) {
       console.error(error);
       alert('เกิดข้อผิดพลาด หรือเซสชันของคุณหมดอายุ กรุณาล็อกอินใหม่');
@@ -181,6 +193,41 @@ const ProductReviews = ({ productId }) => {
               />
             </div>
 
+            {/* Image Upload */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '10px', color: '#475569' }}>
+                แนบรูปภาพรีวิว (ถ้ามี)
+              </label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  setImage(file);
+                  setImagePreview(URL.createObjectURL(file));
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 10px 6px',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  backgroundColor: '#ffffff',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              />
+              {imagePreview && (
+                <div style={{ marginTop: '10px' }}>
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Submit Button */}
             <button 
               type="submit"
@@ -277,6 +324,16 @@ const ProductReviews = ({ productId }) => {
                     }}>
                       {review.comment}
                     </p>
+
+                    {review.image && (
+                      <div style={{ marginTop: '14px', textAlign: 'center' }}>
+                        <img
+                          src={review.image.startsWith('http') ? review.image : `http://localhost:5000${review.image}`}
+                          alt="Customer review"
+                          style={{ width: '100%', maxHeight: '260px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
