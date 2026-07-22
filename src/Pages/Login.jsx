@@ -119,7 +119,7 @@ export default function Login() {
           <div className="col-lg-6 d-none d-lg-block pe-5">
             <div className="mb-2">
               <img 
-                src="/KickZone(1).png" 
+                src="./public/KickZone(1).png" 
                 alt="KickZone Logo" 
                 style={{ width: '300px', objectFit: 'contain', transform: 'scale(1.8)', transformOrigin: 'left center' }} 
               />
@@ -155,7 +155,7 @@ export default function Login() {
               <div className="text-center mb-4">
                 <div className="mb-2 d-flex justify-content-center">
                   <img 
-                    src="/KickZone(1).png" 
+                    src="./public/KickZone(1).png" 
                     alt="KickZone Logo" 
                     style={{ width: '220px', objectFit: 'contain', transform: 'scale(1.5)' }} 
                   />
