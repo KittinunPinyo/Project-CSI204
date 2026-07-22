@@ -52,82 +52,71 @@
 
 ```mermaid
 flowchart LR
-    %% Actors
-    User([ผู้ใช้งาน])
-    Admin([แอดมิน])
+    %% Actors Definition
+    subgraph Actors ["👥 ผู้ใช้งานระบบ (Actors)"]
+        Customer["👤 ลูกค้า (Customer)"]
+        Admin["🔧 ผู้ดูแลระบบ (Admin)"]
+        GoogleAuth["🌐 Google OAuth"]
+    end
 
-    %% User Use Cases
-    UC1([สมัครสมาชิก / เข้าสู่ระบบ])
-    UC2([ค้นหาและดูสินค้า])
-    UC2_1([ค้นหาด้วยชื่อสินค้า])
-    UC2_2([ค้นหาด้วยรหัสสินค้า])
-    UC3([ดูรายละเอียดสินค้า])
-    UC3_1([แสดงสินค้าคงเหลือ])
-    UC3_2([เพิ่มเข้ารายการโปรด])
-    UC4([จัดการตะกร้าสินค้า])
-    UC4_1([แก้ไขจำนวนสินค้า])
-    UC4_2([ลบรายการสินค้าออกจากตะกร้า])
-    UC5([สั่งซื้อสินค้า])
-    UC5_1([ระบุที่อยู่จัดส่ง])
-    UC5_2([ช่องทางการจัดส่ง])
-    UC6([ชำระเงิน])
-    UC6_1([ชำระเงินผ่านคิวอาร์])
-    UC6_2([ชำระเงินผ่านพร้อมเพย์])
-    UC7([ดูประวัติคำสั่งซื้อ])
-    UC8([ติดตามสถานะคำสั่งซื้อ])
+    %% Boundary System
+    subgraph KickZoneSystem ["👟 KickZone Shoe System"]
 
-    %% Admin Use Cases
-    UC9([จัดการข้อมูลสินค้า])
-    UC9_1([เพิ่มสินค้า / ลบสินค้า])
-    UC9_2([แก้ไขรายละเอียดสินค้า])
-    UC10([จัดการคำสั่งซื้อ])
-    UC10_1([อัพเดตสถานะการส่ง])
-    UC10_2([กรองดูรายการคำสั่งซื้อ])
-    UC11([จัดการผู้ใช้งาน])
-    UC11_1([แก้ไขบทบาท])
-    UC12([สรุปยอดขาย])
+        subgraph ModAuth ["1. ระบบยืนยันตัวตน (Authentication)"]
+            UC1(["UC-01: สมัครสมาชิก (Register)"])
+            UC2(["UC-02: เข้าสู่ระบบ (Login)"])
+            UC3(["UC-03: เข้าสู่ระบบด้วย Google (Google Login)"])
+        end
 
-    %% Connections for User
-    User --- UC1
-    User --- UC2
-    User --- UC3
-    User --- UC4
-    User --- UC5
-    User --- UC6
-    User --- UC7
-    User --- UC8
+        subgraph ModProduct ["2. ระบบสินค้าและค้นหา (Product & Search)"]
+            UC4(["UC-04: ค้นหาและกรองรองเท้าตามแบรนด์/ราคา"])
+            UC5(["UC-05: ดูรายละเอียดสินค้า & สต็อกไซส์ (EU Size)"])
+            UC6(["UC-06: จัดการตะกร้าสินค้า (Cart)"])
+            UC7(["UC-07: บันทึกสินค้าที่ชอบ (Wishlist)"])
+        end
 
-    UC2_1 --> UC2
-    UC2_2 --> UC2
-    
-    UC3 -. include .-> UC3_1
-    UC3_2 -. Extend .-> UC3
-    
-    UC4_1 -. Extend .-> UC4
-    UC4_2 -. Extend .-> UC4
-    
-    UC5 -. include .-> UC5_1
-    UC5 -. include .-> UC5_2
-    
-    UC6_1 --> UC6
-    UC6_2 --> UC6
+        subgraph ModOrder ["3. ระบบสั่งซื้อและชำระเงิน (Orders & Payment)"]
+            UC8(["UC-08: สั่งซื้อสินค้า & ใช้โค้ดส่วนลด (Checkout & Promo)"])
+            UC9(["UC-09: อัปโหลดสลิปโอนเงิน (Upload Slip)"])
+            UC10(["UC-10: ติดตามสถานะคำสั่งซื้อ & พัสดุ (Order Tracking)"])
+        end
 
-    %% Connections for Admin
-    Admin --- UC9
-    Admin --- UC10
-    Admin --- UC11
-    Admin --- UC12
-    
-    %% Dashed line from User's history to Admin (as in diagram)
-    UC7 -.- Admin
+        subgraph ModReview ["4. ระบบรีวิวสินค้า (Product Reviews)"]
+            UC11(["UC-11: เขียนรีวิวสินค้าและให้คะแนนดาว"])
+        end
 
-    UC9_1 -. Extend .-> UC9
-    UC9_2 -. Extend .-> UC9
-    
-    UC10_1 -. Extend .-> UC10
-    UC10_2 -. Extend .-> UC10
-    
-    UC11_1 -. Extend .-> UC11
+        subgraph ModAdmin ["5. ระบบจัดการหลังบ้าน (Admin Management)"]
+            UC12(["UC-12: ดู Dashboard และสรุปยอดขาย"])
+            UC13(["UC-13: จัดการสินค้าและสต็อกไซส์ (Manage Products)"])
+            UC14(["UC-14: จัดการคำสั่งซื้อและตรวจสลิป (Manage Orders & Slips)"])
+            UC15(["UC-15: อัปเดตสถานะจัดส่ง & ออกเลข Tracking"])
+            UC16(["UC-16: จัดการโปรโมชั่น & Flash Sale"])
+            UC17(["UC-17: ตรวจสอบและจัดการรีวิว (Manage Reviews)"])
+        end
+
+    end
+%% Customer Connections
+    Customer --> UC1
+    Customer --> UC2
+    Customer --> UC3
+    Customer --> UC4
+    Customer --> UC5
+    Customer --> UC6
+    Customer --> UC7
+    Customer --> UC8
+    Customer --> UC9
+    Customer --> UC10
+    Customer --> UC11
+%% External System Relationship
+    UC3 -.-> GoogleAuth
+
+    %% Admin Connections
+    Admin --> UC12
+    Admin --> UC13
+    Admin --> UC14
+    Admin --> UC15
+    Admin --> UC16
+    Admin --> UC17
 ```
 
 ---
@@ -434,4 +423,79 @@ sequenceDiagram
 
 ---
 
+🗄️ โครงสร้างข้อมูล (JSON Schema)
+ระบบ KickZone Shoe ใช้โครงสร้างข้อมูล JSON สำหรับแลกเปลี่ยนข้อมูลระหว่าง Frontend (React) และ Backend (Express RESTful API) รวมถึงการบันทึกข้อมูลในฐานข้อมูล PostgreSQL (JSONB):
+
+เอกสารฉบับเต็มของ JSON Schema สามารถดูได้ที่ [docs/json-schema.json](./docs/json-schema.json)
+
+📌 สรุป Schema สำหรับ Entities หลัก:
+#### 1. Product Schema (สินค้าและสต็อกตามไซส์)
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Product",
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer" },
+    "name": { "type": "string" },
+    "brand": { "type": "string" },
+    "price": { "type": "number", "minimum": 0 },
+    "image": { "type": "string" },
+    "sku": { "type": "string" },
+    "color": { "type": "string" },
+    "releaseDate": { "type": "string" },
+    "stock": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 },
+      "description": "สต็อกแยกตาม EU Size เช่น {'38': 10, '39': 5, '40': 0}"
+    },
+    "discountType": { "type": "string", "enum": ["fixed", "percentage"] },
+    "discountValue": { "type": "number", "default": 0 },
+    "promotionTag": { "type": "string" }
+  },
+  "required": ["name", "price", "stock"]
+}
+#### 2. Order Schema (คำสั่งซื้อและสลิปการโอน)
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Order",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "description": "รหัสคำสั่งซื้อ เช่น ORD-1721689200000-123" },
+    "customerName": { "type": "string" },
+    "customerEmail": { "type": "string", "format": "email" },
+    "shoeModel": { "type": "string" },
+    "size": { "type": "string" },
+    "totalAmount": { "type": "number", "minimum": 0 },
+    "paymentMethod": { "type": "string", "default": "PromptPay" },
+    "paymentStatus": { "type": "string", "enum": ["Pending Upload", "Paid", "Rejected", "Refunded"] },
+    "orderStatus": { "type": "string", "enum": ["Processing", "Shipping", "Completed", "Cancelled"] },
+    "trackingNumber": { "type": "string", "default": "N/A" },
+    "slipUrl": { "type": ["string", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "required": ["id", "customerName", "customerEmail", "shoeModel", "size", "totalAmount"]
+}
+
+
+#### 3. Promotion Schema (โปรโมชั่นและ Flash Sale)
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Promotion",
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer" },
+    "code": { "type": "string" },
+    "description": { "type": "string" },
+    "discountType": { "type": "string", "enum": ["percentage", "fixed"] },
+    "discountValue": { "type": "number" },
+    "maxDiscount": { "type": ["number", "null"] },
+    "maxUses": { "type": ["integer", "null"] },
+    "currentUses": { "type": "integer", "default": 0 },
+    "isFlashSale": { "type": "boolean", "default": false },
+    "isActive": { "type": "boolean", "default": true }
+  },
+  "required": ["code", "discountType", "discountValue"]
+}
+
+---
 **ดู:** [System Architecture →](architecture.md)
