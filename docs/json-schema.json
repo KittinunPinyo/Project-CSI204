@@ -28,10 +28,20 @@
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Timestamp when account was created"
         }
       },
-      "required": ["name", "email", "role"]
+      "required": ["name", "email", "role"],
+      "examples": [
+        {
+          "id": 1,
+          "name": "Kittinun Pinyo",
+          "email": "customer@kickzone.com",
+          "role": "customer",
+          "createdAt": "2026-07-22T10:00:00Z"
+        }
+      ]
     },
     "Product": {
       "type": "object",
@@ -56,7 +66,7 @@
         },
         "image": {
           "type": "string",
-          "description": "Product image URL or file path"
+          "description": "Product image URL or relative path"
         },
         "sku": {
           "type": "string",
@@ -76,31 +86,48 @@
           "additionalProperties": {
             "type": "integer",
             "minimum": 0
-          },
-          "example": {
-            "38": 10,
-            "39": 5,
-            "40": 0,
-            "41": 8,
-            "42": 12
           }
         },
         "discountType": {
           "type": "string",
           "enum": ["fixed", "percentage"],
-          "default": "fixed"
+          "default": "fixed",
+          "description": "Type of discount applied"
         },
         "discountValue": {
           "type": "number",
           "minimum": 0,
-          "default": 0
+          "default": 0,
+          "description": "Discount amount in THB or percentage"
         },
         "promotionTag": {
           "type": "string",
           "description": "Promotional badge label (e.g., Flash Sale, Hot Item)"
         }
       },
-      "required": ["name", "price", "stock"]
+      "required": ["name", "price", "stock"],
+      "examples": [
+        {
+          "id": 101,
+          "name": "Nike Air Force 1 '07",
+          "brand": "Nike",
+          "price": 3600,
+          "image": "/uploads/nike-af1.jpg",
+          "sku": "NK-AF1-001",
+          "color": "White/White",
+          "releaseDate": "2024-01-15",
+          "stock": {
+            "38": 10,
+            "39": 5,
+            "40": 0,
+            "41": 8,
+            "42": 12
+          },
+          "discountType": "percentage",
+          "discountValue": 10,
+          "promotionTag": "Flash Sale"
+        }
+      ]
     },
     "Order": {
       "type": "object",
@@ -117,7 +144,7 @@
         "customerEmail": {
           "type": "string",
           "format": "email",
-          "description": "Customer email"
+          "description": "Customer email address"
         },
         "shoeModel": {
           "type": "string",
@@ -140,12 +167,14 @@
         "paymentStatus": {
           "type": "string",
           "enum": ["Pending Upload", "Paid", "Rejected", "Refunded"],
-          "default": "Pending Upload"
+          "default": "Pending Upload",
+          "description": "Verification status of payment slip"
         },
         "orderStatus": {
           "type": "string",
           "enum": ["Processing", "Shipping", "Completed", "Cancelled"],
-          "default": "Processing"
+          "default": "Processing",
+          "description": "Order fulfillment status"
         },
         "trackingNumber": {
           "type": "string",
@@ -158,17 +187,35 @@
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Timestamp when order was placed"
         }
       },
-      "required": ["id", "customerName", "customerEmail", "shoeModel", "size", "totalAmount"]
+      "required": ["id", "customerName", "customerEmail", "shoeModel", "size", "totalAmount"],
+      "examples": [
+        {
+          "id": "ORD-1721689200000-123",
+          "customerName": "Thanawisit Intasaen",
+          "customerEmail": "customer@example.com",
+          "shoeModel": "Adidas Ultraboost Light",
+          "size": "42",
+          "totalAmount": 4500,
+          "paymentMethod": "PromptPay",
+          "paymentStatus": "Paid",
+          "orderStatus": "Shipping",
+          "trackingNumber": "TH-89213",
+          "slipUrl": "/uploads/slip-1721689200000.jpg",
+          "createdAt": "2026-07-22T14:30:00Z"
+        }
+      ]
     },
     "Review": {
       "type": "object",
       "title": "Review Schema",
       "properties": {
         "id": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Unique review identifier"
         },
         "productId": {
           "type": "string",
@@ -177,6 +224,10 @@
         "userId": {
           "type": "integer",
           "description": "ID of user who authored the review"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Author display name"
         },
         "rating": {
           "type": "integer",
@@ -194,68 +245,112 @@
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Timestamp when review was created"
         }
       },
-      "required": ["productId", "userId", "rating", "comment"]
+      "required": ["productId", "userId", "rating", "comment"],
+      "examples": [
+        {
+          "id": 12,
+          "productId": "101",
+          "userId": 1,
+          "userName": "Warot Chuenchaichan",
+          "rating": 5,
+          "comment": "รองเท้าใส่สบายมาก น้ำหนักเบา สั่งจัดส่งไวมากครับ!",
+          "image": "/uploads/review-12.jpg",
+          "createdAt": "2026-07-22T15:10:00Z"
+        }
+      ]
     },
     "Promotion": {
       "type": "object",
       "title": "Promotion Schema",
       "properties": {
         "id": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Unique promotion identifier"
         },
         "code": {
           "type": "string",
           "description": "Unique promotional discount code (e.g. KICKZONE10)"
         },
         "description": {
-          "type": "string"
+          "type": "string",
+          "description": "Promotion details or description"
         },
         "discountType": {
           "type": "string",
-          "enum": ["percentage", "fixed"]
+          "enum": ["percentage", "fixed"],
+          "description": "Discount type (percentage off or fixed baht discount)"
         },
         "discountValue": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "description": "Discount rate or amount"
         },
         "maxDiscount": {
-          "type": ["number", "null"]
+          "type": ["number", "null"],
+          "description": "Cap on maximum discount in THB for percentage discounts"
         },
         "maxUses": {
-          "type": ["integer", "null"]
+          "type": ["integer", "null"],
+          "description": "Maximum number of redemptions allowed"
         },
         "currentUses": {
           "type": "integer",
-          "default": 0
+          "default": 0,
+          "description": "Number of times promotion code has been used"
         },
         "startDate": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Promotion start date"
         },
         "endDate": {
           "type": ["string", "null"],
-          "format": "date-time"
+          "format": "date-time",
+          "description": "Promotion expiration date"
         },
         "isFlashSale": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "description": "Flag indicating if this promotion is a Flash Sale"
         },
         "isActive": {
           "type": "boolean",
-          "default": true
+          "default": true,
+          "description": "Flag indicating if promotion is currently active"
         },
         "minimumOrderAmount": {
           "type": "number",
-          "default": 0
+          "default": 0,
+          "description": "Minimum subtotal required to use code"
         },
         "maximumOrderAmount": {
-          "type": ["number", "null"]
+          "type": ["number", "null"],
+          "description": "Maximum subtotal limit for promo eligibility"
         }
       },
-      "required": ["code", "discountType", "discountValue"]
+      "required": ["code", "discountType", "discountValue"],
+      "examples": [
+        {
+          "id": 5,
+          "code": "KICKZONE10",
+          "description": "ส่วนลด 10% สำหรับการสั่งซื้อขั้นต่ำ 1,000 บาท",
+          "discountType": "percentage",
+          "discountValue": 10,
+          "maxDiscount": 500,
+          "maxUses": 100,
+          "currentUses": 24,
+          "startDate": "2026-07-01T00:00:00Z",
+          "endDate": "2026-08-31T23:59:59Z",
+          "isFlashSale": true,
+          "isActive": true,
+          "minimumOrderAmount": 1000,
+          "maximumOrderAmount": null
+        }
+      ]
     }
   }
 }
