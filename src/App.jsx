@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 
 import Navbar from './components/Navbar';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Admin from './pages/Admin';
-import Register from './pages/Register';
-import Cart from './pages/Cart';
-import ProductDetail from './pages/ProductDetail';
-import Profile from './pages/Profile';
-import ManageReviews from './pages/ManageReviews';
+import Home from './Pages/Home';
+import Login from './Pages/Login';
+import Admin from './Pages/Admin';
+import Register from './Pages/Register';
+import Cart from './Pages/Cart';
+import ProductDetail from './Pages/ProductDetail';
+import Profile from './Pages/Profile';
+import ManageReviews from './Pages/ManageReviews';
 
 export default function App() {
   const navigate = useNavigate();
