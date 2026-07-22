@@ -68,73 +68,95 @@
 
 ```mermaid
 flowchart LR
-    %% Actors Definition
-    subgraph Actors ["👥 ผู้ใช้งานระบบ (Actors)"]
-        Customer["👤 ลูกค้า (Customer)"]
-        Admin["🔧 ผู้ดูแลระบบ (Admin)"]
-        GoogleAuth["🌐 Google OAuth"]
+    %% กำหนดสไตล์ให้ตัวละคร (ไม่มีกรอบ)
+    classDef actor fill:transparent,stroke:transparent,font-weight:bold,color:#333;
+
+    %% --- ตัวละครฝั่งซ้าย ---
+    Guest["👤<br>ผู้ใช้งานทั่วไป<br>(Guest)"]:::actor
+    Customer["👤<br>ลูกค้า<br>(Customer)"]:::actor
+
+    %% --- กรอบระบบ ---
+    subgraph System ["ระบบเว็บไซต์ร้านค้าออนไลน์สำหรับจัดจำหน่ายรองเท้า"]
+
+        %% Use Cases ของ Guest (สัญลักษณ์วงรี)
+        G1(["เรียกดูหน้าแรก"])
+        G2(["ค้นหาสินค้า"])
+        G3(["ดูรายละเอียดสินค้า"])
+
+        %% Use Cases ของ Customer
+        C1(["สมัครสมาชิก"])
+        C2(["เข้าสู่ระบบ"])
+        C5(["จัดการตะกร้าสินค้า"])
+        C6(["สั่งซื้อสินค้า"])
+        C7(["ชำระเงิน"])
+        C8(["ติดตามคำสั่งซื้อ"])
+        C9(["รีวิวสินค้า / ให้คะแนน"])
+        C10(["รายการโปรด"])
+
+        %% Include / Extend ของ Customer
+        I_C5_1(["คำนวณราคารวม"])
+        I_C5_2(["ใช้โค้ดส่วนลด"])
+        I_C6_1(["เลือกที่อยู่จัดส่ง"])
+        I_C6_2(["เลือกวิธีชำระเงิน"])
+        E_C9_1(["แนบรูปภาพรีวิว"])
+
+        %% Use Cases ของ Admin
+        A1(["จัดการหมวดหมู่สินค้า"])
+        A2(["จัดการสินค้า"])
+        A3(["จัดการคำสั่งซื้อ"])
+        A4(["จัดการลูกค้า"])
+        A5(["จัดการการโปรโมชั่น / ส่วนลด"])
+        A6(["จัดการการจัดส่ง"])
+        A7(["รายงานและสถิติ"])
+
+        %% Include ของ Admin
+        I_A2_1(["เพิ่มสินค้า"])
+        I_A2_2(["แก้ไขสินค้า"])
+        I_A2_3(["ลบสินค้า"])
+        I_A3_1(["ตรวจสอบ / ยืนยันคำสั่งซื้อ"])
     end
 
-    %% Boundary System
-    subgraph KickZoneSystem ["👟 KickZone Shoe System"]
+    %% --- ตัวละครฝั่งขวา ---
+    Admin["👤<br>ผู้ดูแลระบบ<br>(Admin)"]:::actor
 
-        subgraph ModAuth ["1. ระบบยืนยันตัวตน (Authentication)"]
-            UC1(["UC-01: สมัครสมาชิก (Register)"])
-            UC2(["UC-02: เข้าสู่ระบบ (Login)"])
-            UC3(["UC-03: เข้าสู่ระบบด้วย Google (Google Login)"])
-        end
+    %% --- ลากเส้นความสัมพันธ์ฝั่งซ้าย ---
+    Guest --- G1
+    Guest --- G2
+    Guest --- G3
 
-        subgraph ModProduct ["2. ระบบสินค้าและค้นหา (Product & Search)"]
-            UC4(["UC-04: ค้นหาและกรองรองเท้าตามแบรนด์/ราคา"])
-            UC5(["UC-05: ดูรายละเอียดสินค้า & สต็อกไซส์ (EU Size)"])
-            UC6(["UC-06: จัดการตะกร้าสินค้า (Cart)"])
-            UC7(["UC-07: บันทึกสินค้าที่ชอบ (Wishlist)"])
-        end
+    Customer --- C1
+    Customer --- C2
+    Customer --- G2
+    Customer --- G3
+    Customer --- C5
+    Customer --- C6
+    Customer --- C7
+    Customer --- C8
+    Customer --- C9
+    Customer --- C10
 
-        subgraph ModOrder ["3. ระบบสั่งซื้อและชำระเงิน (Orders & Payment)"]
-            UC8(["UC-08: สั่งซื้อสินค้า & ใช้โค้ดส่วนลด (Checkout & Promo)"])
-            UC9(["UC-09: อัปโหลดสลิปโอนเงิน (Upload Slip)"])
-            UC10(["UC-10: ติดตามสถานะคำสั่งซื้อ & พัสดุ (Order Tracking)"])
-        end
+    %% เส้น Include / Extend
+    C5 -. "<< include >>" .-> I_C5_1
+    C5 -. "<< include >>" .-> I_C5_2
+    C6 -. "<< include >>" .-> I_C6_1
+    C6 -. "<< include >>" .-> I_C6_2
+    C9 -. "<< extend >>" .-> E_C9_1
 
-        subgraph ModReview ["4. ระบบรีวิวสินค้า (Product Reviews)"]
-            UC11(["UC-11: เขียนรีวิวสินค้าและให้คะแนนดาว"])
-        end
+    %% --- ลากเส้นความสัมพันธ์ฝั่งขวา ---
+    %% (เอาวงรีขึ้นก่อน แล้วโยงไปหา Admin เพื่อบังคับให้ Admin ไปอยู่ขวาสุด)
+    A1 --- Admin
+    A2 --- Admin
+    A3 --- Admin
+    A4 --- Admin
+    A5 --- Admin
+    A6 --- Admin
+    A7 --- Admin
 
-        subgraph ModAdmin ["5. ระบบจัดการหลังบ้าน (Admin Management)"]
-            UC12(["UC-12: ดู Dashboard และสรุปยอดขาย"])
-            UC13(["UC-13: จัดการสินค้าและสต็อกไซส์ (Manage Products)"])
-            UC14(["UC-14: จัดการคำสั่งซื้อและตรวจสลิป (Manage Orders & Slips)"])
-            UC15(["UC-15: อัปเดตสถานะจัดส่ง & ออกเลข Tracking"])
-            UC16(["UC-16: จัดการโปรโมชั่น & Flash Sale"])
-            UC17(["UC-17: ตรวจสอบและจัดการรีวิว (Manage Reviews)"])
-        end
-
-    end
-
-    %% Customer Connections
-    Customer --> UC1
-    Customer --> UC2
-    Customer --> UC3
-    Customer --> UC4
-    Customer --> UC5
-    Customer --> UC6
-    Customer --> UC7
-    Customer --> UC8
-    Customer --> UC9
-    Customer --> UC10
-    Customer --> UC11
-
-    %% External System Relationship
-    UC3 -.-> GoogleAuth
-
-    %% Admin Connections
-    Admin --> UC12
-    Admin --> UC13
-    Admin --> UC14
-    Admin --> UC15
-    Admin --> UC16
-    Admin --> UC17
+    %% เส้น Include ของ Admin
+    A2 -. "<< include >>" .-> I_A2_1
+    A2 -. "<< include >>" .-> I_A2_2
+    A2 -. "<< include >>" .-> I_A2_3
+    A3 -. "<< include >>" .-> I_A3_1
 ```
 
 ---
