@@ -134,101 +134,218 @@ flowchart LR
 ส่วนนี้แสดงโครงสร้างข้อมูล ความสัมพันธ์ระหว่าง Class (Relationships) และ Attributes/Methods ที่ใช้ในระบบจัดการร้านรองเท้ากีฬา
 ![Class Diagram](ClassDiagram.png)
 
-```mermaid
 classDiagram
+    direction TB
+
+    %% ==========================================
+    %% 1. User & Identity Layer
+    %% ==========================================
     class User {
-        +int id
-        +String email
-        +String role
-        +login() void
-        +logout() void
-    }
-    
-    class Order {
-        +int id
-        +String orderNumber
-        +String orderStatus
-        +float netTotal
-        +String shippingAddress
-        +String paymentMethod
-        +saveOrder() void
-        +updateOrderStatus() void
-    }
-    
-    class OrderItem {
-        +int orderId
-        +int variantId
-        +String productName
-        +String modelName
-        +String size
-        +String color
-        +int quantity
-        +float totalPrice
-    }
-    
-    class Brand {
-        +int id
-        +String slug
-        +String brandName
-    }
-    
-    class Category {
-        +int id
-        +String slug
-        +String categoryName
-    }
-    
-    class ShoeProduct {
-        +int id
-        +String baseSKU
-        +String productName
-        +String description
-        +String modelName
-        +String genderCategory
-        +float basePrice
-        +float discountedPrice
-        +int totalStock
-        +List imageUrls
-        +getCheapestVariantPrice() float
-    }
-    
-    class ProductVariant {
-        +int variantId
-        +int productId
-        +String variantSKU
-        +String size
-        +String colorName
-        +int stockQuantity
-        +List variantImageUrls
-    }
-    
-    class CartContext {
-        +List cartItems
-        +addToCart(variantId: int, quantity: int) void
-        +updateQuantity(variantId: int, quantity: int) void
-        +removeFromCart(variantId: int) void
-        +clearCart() void
-    }
-    
-    class CartItem {
-        +int variantId
-        +String productName
-        +String modelName
-        +String size
-        +String color
-        +int quantity
-        +float totalPrice
+        - userId: int
+        - name: string
+        - email: string
+        - password: string
+        - createdAt: datetime
+        + register(): void
+        + login(email, password): bool
+        + logout(): void
+        + updateProfile(): void
     }
 
-    User "1" --> "0..*" Order : makes order
-    Order "1" *-- "1..*" OrderItem : contains details
-    Brand "1" -- "0..*" ShoeProduct : is brand of
-    Category "1" -- "0..*" ShoeProduct : categorized in
-    ShoeProduct "1" *-- "0..*" ProductVariant : has variants
-    CartContext --> CartItem : stores items
-    CartItem "*" --> "1" ProductVariant : references
-    OrderItem "*" --> "1" ProductVariant : references purchased
-```
+    class Customer {
+        - customerId: int
+        - userId: int
+        + viewOrderHistory(): List~Order~
+    }
+
+    class Admin {
+        - adminId: int
+        - userId: int
+        - role: string
+        + manageProduct(): void
+        + manageOrder(): void
+        + managePromotion(): void
+        + manageReview(): void
+    }
+
+    class Address {
+        - addressId: int
+        - userId: int
+        - recipientName: string
+        - phone: string
+        - addressLine: string
+        - subdistrict: string
+        - district: string
+        - province: string
+        - postalCode: string
+        - isDefault: bool
+        + addAddress(): void
+        + updateAddress(): void
+        + deleteAddress(): void
+    }
+
+    %% User Relationships
+    User <|-- Customer
+    User <|-- Admin
+    User "1" -- "1..*" Address : มีที่อยู่
+
+    %% ==========================================
+    %% 2. Product & Catalog Layer
+    %% ==========================================
+    class Category {
+        - categoryId: int
+        - categoryName: string
+        - description: string
+        + getProducts(): List~Product~
+    }
+
+    class Product {
+        - productId: int
+        - categoryId: int
+        - productName: string
+        - brand: string
+        - sku: string
+        - color: string
+        - price: decimal
+        - imageUrl: string
+        - releaseDate: string
+        - status: string
+        - createdAt: datetime
+        + getDetail(): Product
+        + updateStock(size, qty): void
+    }
+
+    class Inventory {
+        - inventoryId: int
+        - productId: int
+        - sizeEU: string
+        - stockQty: int
+        - reservedQty: int
+        + increaseStock(qty): void
+        + decreaseStock(qty): void
+        + getAvailableStock(): int
+    }
+
+    %% Product Relationships
+    Category "1" -- "0..*" Product : หมวดหมู่แบรนด์
+    Product "1" -- "1..*" Inventory : จัดการสต็อกไซส์
+
+    %% ==========================================
+    %% 3. Cart & Shopping Layer
+    %% ==========================================
+    class Cart {
+        - cartId: int
+        - userId: int
+        - createdAt: datetime
+        + addItem(productId, size, qty): void
+        + updateItem(productId, qty): void
+        + removeItem(productId): void
+        + clearCart(): void
+        + getTotal(): decimal
+    }
+
+    class CartItem {
+        - cartItemId: int
+        - cartId: int
+        - productId: int
+        - selectedSize: string
+        - quantity: int
+        - price: decimal
+        + getSubtotal(): decimal
+    }
+
+    %% Cart Relationships
+    Customer "1" -- "0..1" Cart : เจ้าของตะกร้า
+    Cart "1" *-- "1..*" CartItem : ประกอบด้วย
+    CartItem "*" -- "1" Product : อ้างอิงสินค้า
+
+    %% ==========================================
+    %% 4. Order & Transaction Layer
+    %% ==========================================
+    class Order {
+        - orderId: int
+        - userId: int
+        - orderDate: datetime
+        - status: string
+        - totalAmount: decimal
+        - shippingAddressId: int
+        - paymentStatus: string
+        + calculateTotal(): decimal
+        + changeStatus(status): void
+        + cancelOrder(): void
+    }
+
+    class OrderItem {
+        - orderItemId: int
+        - orderId: int
+        - productId: int
+        - selectedSize: string
+        - productName: string
+        - price: decimal
+        - quantity: int
+        - subtotal: decimal
+        + getSubtotal(): decimal
+    }
+
+    %% Order Relationships
+    Customer "1" -- "0..*" Order : สั่งซื้อสินค้า
+    Address "1" -- "0..*" Order : สั่งซื้อส่งที่อยู่
+    Order "1" *-- "1..*" OrderItem : ประกอบด้วย
+    OrderItem "*" -- "1" Product : อ้างอิงสินค้า
+
+    %% ==========================================
+    %% 5. Fulfillment, Promotion & Feedback
+    %% ==========================================
+    class Payment {
+        - paymentId: int
+        - orderId: int
+        - paymentMethod: string
+        - amount: decimal
+        - slipImage: string
+        - paidAt: datetime
+        - status: string
+        + processPayment(): bool
+        + verifySlip(): bool
+    }
+
+    class Shipment {
+        - shipmentId: int
+        - orderId: int
+        - shippingMethod: string
+        - trackingNumber: string
+        - shippedDate: datetime
+        - status: string
+        + updateStatus(status): void
+    }
+
+    class Promotion {
+        - promotionId: int
+        - code: string
+        - discountType: string
+        - discountValue: decimal
+        - minOrderAmount: decimal
+        - startDate: datetime
+        - endDate: datetime
+        - status: string
+        + isValid(): bool
+    }
+
+    class Review {
+        - reviewId: int
+        - productId: int
+        - userId: int
+        - rating: int
+        - comment: string
+        - createdAt: datetime
+        + editReview(): void
+    }
+
+    %% Service & Review Relationships
+    Order "1" -- "1" Payment : ชำระเงิน
+    Order "1" -- "0..1" Shipment : จัดส่ง
+    Promotion ..> Order : ใช้ส่วนลด
+    Customer "1" -- "0..*" Review : เขียนรีวิว
+    Product "1" -- "0..*" Review : ได้รับรีวิว
 
 ---
 
