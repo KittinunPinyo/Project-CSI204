@@ -12,8 +12,8 @@ const GOOGLE_CLIENT_ID = "50847339110-gi5e17b5ldlti3uqquvqmvfmgsf4lf8p.apps.goog
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {/* 🌟 เพิ่ม basename ให้ตรงกับชื่อ Repository ของ GitHub Pages */}
-    <BrowserRouter basename="/KickZone-Shoe">
+    {/* 🌟 ปรับ basename ให้ฉลาดขึ้น: รันในคอมใช้ '/' ถ้ารันบนเว็บใช้ '/KickZone-Shoe/' */}
+    <BrowserRouter basename={import.meta.env.DEV ? '/' : '/KickZone-Shoe/'}>
       {/* 🌟 3. ครอบ App ด้วย GoogleOAuthProvider */}
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         <App />

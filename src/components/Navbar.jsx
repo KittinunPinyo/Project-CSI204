@@ -27,7 +27,7 @@ export default function Navbar({ searchQuery, setSearchQuery, cart }) {
           
           <Link to="/" className="navbar-brand p-0" style={{ marginTop: '-20px', marginBottom: '-20px' }}>
             <img 
-              src="./public/KickZone(1).png" 
+              src="/KickZone(1).png" 
               alt="KickZone Logo" 
               style={{ height: '80px', objectFit: 'contain' }} 
             />
