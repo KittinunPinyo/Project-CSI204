@@ -227,7 +227,7 @@ export default function ProductDetail({ products, currentUser, handleAddToCart }
               )}
 
               <div className="text-center py-2 rounded-pill small fw-bold mb-4" style={{ backgroundColor: '#E8E1D9', color: '#5C4E43' }}>
-                ✅ สินค้าของแท้ 100% | จัดส่งฟรีเมื่อยอดเกิน 3,000 บาท
+                ✅ สินค้าของแท้ 100%
               </div>
 
               {/* 🌟 รายละเอียดสินค้าด้านล่าง */}
