@@ -33,17 +33,16 @@
 
 ### 1.2 ขอบเขตของระบบ (System Scope)
 
-ระบบครอบคลุมฟังก์ชันหลัก 9 ส่วน ตามที่กำหนดในรายวิชา ได้แก่
 
-1. การจัดการสมาชิก (Register / Login)
-2. การจัดการข้อมูลสินค้า
-3. การค้นหาและแสดงรายละเอียดสินค้า
-4. ระบบตะกร้าสินค้า (Shopping Cart)
-5. ระบบสั่งซื้อสินค้า (Order Management)
-6. ระบบชำระเงิน (Simulation)
-7. ระบบติดตามสถานะคำสั่งซื้อ
-8. ระบบจัดการสินค้าและคำสั่งซื้อสำหรับผู้ดูแลระบบ
-9. รายงาน / Dashboard สรุปข้อมูล
+1.ระบบจัดการสมาชิกและการยืนยันตัวตน: ครอบคลุมการสมัครสมาชิก เข้าสู่ระบบ และการเชื่อมต่อผ่าน Google OAuth
+2.ระบบจัดการข้อมูลสินค้าและคลังสินค้า: จัดการข้อมูลรองเท้าและระบบตัดสต็อกแบบเจาะจงตามไซส์ (EU Size)
+3.ระบบค้นหาและแสดงผลสินค้า: ครอบคลุมการกรองสินค้าตามแบรนด์และราคา พร้อมแสดงรายละเอียดสินค้าที่ครบถ้วน
+4.ระบบตะกร้าสินค้าและรายการที่ชอบ: การคำนวณราคาสินค้าในตะกร้า (Shopping Cart) และระบบ Wishlist
+5.ระบบสั่งซื้อและโปรโมชั่น: การสร้างคำสั่งซื้อ การคำนวณส่วนลดจาก Promo Code และระบบ Flash Sale
+6.ระบบการชำระเงิน: รองรับการยืนยันการสั่งซื้อผ่านการอัปโหลดหลักฐานการโอนเงิน (สลิปโอนเงิน)
+7.ระบบติดตามคำสั่งซื้อ: การแสดงประวัติการสั่งซื้อและสถานะพัสดุสำหรับลูกค้า
+8.ระบบรีวิวสินค้า: รองรับการให้คะแนนดาว เขียนความคิดเห็น และอัปโหลดรูปภาพรีวิวจากผู้ใช้งานจริง
+9.ระบบจัดการหลังบ้าน (Admin Panel): แผงควบคุมสำหรับผู้ดูแลระบบในการจัดการคำสั่งซื้อ สินค้า โปรโมชั่น รีวิว และแสดงรายงานสรุปผล (Dashboard)
 
 ### 2. แผนภาพยูสเคส (Use Case Diagram)
 ![Use Case Diagram](UseCase.png)
@@ -134,6 +133,7 @@ flowchart LR
 ส่วนนี้แสดงโครงสร้างข้อมูล ความสัมพันธ์ระหว่าง Class (Relationships) และ Attributes/Methods ที่ใช้ในระบบจัดการร้านรองเท้ากีฬา
 ![Class Diagram](ClassDiagram.png)
 
+```mermaid
 classDiagram
     direction TB
 
@@ -346,6 +346,7 @@ classDiagram
     Promotion ..> Order : ใช้ส่วนลด
     Customer "1" -- "0..*" Review : เขียนรีวิว
     Product "1" -- "0..*" Review : ได้รับรีวิว
+```
 
 ---
 
@@ -355,46 +356,77 @@ classDiagram
 
 ```mermaid
 sequenceDiagram
-    actor User as User (App)
-    participant API as API Gateway
-    participant Product as Product & Stock System
-    participant Cart as Cart System
-    participant Order as Order System
-    participant Payment as Payment System
-    participant Warehouse as Warehouse & Shipping System
+    autonumber
+    actor C as 🧍 ลูกค้า
+    participant F as 🖥️ หน้าเว็บไซต์<br/>(React Frontend)
+    participant PS as 📦 บริการสินค้า<br/>(Product API)
+    participant CS as 🛒 ตะกร้าสินค้า<br/>(Cart State)
+    participant OS as 📋 บริการสั่งซื้อ<br/>(Order API)
+    participant DB as 🗄️ ฐานข้อมูล<br/>(Database)
 
-    User->>API: 1. Browse products
-    API->>Product: 2. Search products (product name, getCheapestVariantPrice())
-    Product-->>API: 3. Product info (product name, brand, base price)
-    API-->>User: 4. Display product
-    
-    User->>API: 5. Add to cart (specify shoe size and color)
-    API->>Cart: 6. addToCart (variant id, quantity)
-    Cart->>Cart: Create cart item (CartItem)
-    Cart-->>API: 7. Confirm add to cart successful
-    API-->>User: 8. Display cart (total price)
-    
-    User->>API: 9. Proceed to checkout
-    API->>Product: 10. Check stock (ProductVariant)
-    Product-->>API: Product available
-    API->>Order: 11. Create initial order (saveOrder() -> order ID)
-    Order->>Order: Create order details (OrderItem)
-    Order-->>API: 12. Order info (net total)
-    API-->>User: 13. Display checkout page (shipping address & payment method)
-    
-    User->>Payment: 14. Make payment (payment method)
-    API->>Payment: 15. Check payment status
-    Payment-->>API: 16. Update successful payment result
-    
-    API->>Order: 17. Confirm order success (update order status)
-    Order-->>API: 18. Confirm order success
-    API->>Warehouse: 19. Send order to warehouse (deduct stock for that size/color)
-    
-    API->>Cart: Call clearCart()
-    Cart-->>API: Cart cleared successfully
-    Warehouse-->>API: 20. Confirm shipping (generate tracking number)
-    
-    API-->>User: 21. Notify order success (order ID, net total)
+    %% ==================================
+    %% 1. ค้นหาสินค้า
+    %% ==================================
+    Note over C, DB: ❶ ค้นหาสินค้า (Search Product)
+    C->>F: กรอกคำค้นหา / เลือกรุ่นรองเท้า
+    activate F
+    F->>PS: ส่งคำค้นหา (GET /api/products)
+    activate PS
+    PS->>DB: ดึงข้อมูลสินค้า
+    activate DB
+    DB-->>PS: ส่งข้อมูลสินค้า
+    deactivate DB
+    PS-->>F: คืนค่ารายการสินค้า
+    deactivate PS
+    F-->>C: แสดงผลลัพธ์สินค้ารองเท้า
+    deactivate F
+
+    %% ==================================
+    %% 2. เลือกสินค้า
+    %% ==================================
+    Note over C, DB: ❷ เลือกสินค้า (Select Product)
+    C->>F: เลือกสินค้าที่ต้องการดู
+    activate F
+    F->>PS: ขอรายละเอียดสินค้า (GET /api/products/{id})
+    activate PS
+    PS->>DB: ดึงรายละเอียด & สต็อกแต่ละไซส์
+    activate DB
+    DB-->>PS: ส่งรายละเอียดสินค้า
+    deactivate DB
+    PS-->>F: คืนค่ารายละเอียด
+    deactivate PS
+    F-->>C: แสดงรายละเอียดและไซส์ (EU)
+    deactivate F
+
+    %% ==================================
+    %% 3. เพิ่มสินค้าลงตะกร้า
+    %% ==================================
+    Note over C, DB: ❸ เพิ่มสินค้าลงตะกร้า (Add to Cart)
+    C->>F: เลือกไซส์ + กดปุ่ม "เพิ่มลงตะกร้า"
+    activate F
+    F->>CS: เพิ่มสินค้า (productId, size, qty)
+    activate CS
+    CS-->>F: ยืนยันการเพิ่มสินค้า
+    deactivate CS
+    F-->>C: อัปเดตและแสดงตะกร้าสินค้า
+    deactivate F
+
+    %% ==================================
+    %% 4. ชำระเงิน / สั่งซื้อ
+    %% ==================================
+    Note over C, DB: ❹ สั่งซื้อและชำระเงิน (Checkout & Payment)
+    C->>F: กรอกที่อยู่จัดส่ง + กด "ชำระเงิน/สั่งซื้อ"
+    activate F
+    F->>OS: สร้างคำสั่งซื้อ (POST /api/orders)
+    activate OS
+    OS->>DB: บันทึกออเดอร์ & ตัดสต็อกรองเท้า
+    activate DB
+    DB-->>OS: ยืนยันการบันทึก
+    deactivate DB
+    OS-->>F: ยืนยันคำสั่งซื้อสำเร็จ (Response 201)
+    deactivate OS
+    F-->>C: แสดงหน้าสำเร็จ (พร้อมหมายเลขคำสั่งซื้อ)
+    deactivate F
 ```
 
 ---

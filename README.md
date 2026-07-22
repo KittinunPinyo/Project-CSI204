@@ -112,7 +112,7 @@ npm run dev
 |--------|---------|
 | [docs/analysis-design.md](./docs/analysis-design.md) | เอกสารวิเคราะห์และออกแบบ: Persona · Use Case · Class · Sequence · Architecture |
 | [docs/architecture.md](./docs/architecture.md) | กระบวนการสถาปัตยกรรมระบบ (System Architecture) |
-| [Wireframe (Figma)](https://www.figma.com/proto/jDeU44CwqFDEpHVFQV9PWt/KickZone-Sports?node-id=0-1&t=Iy4DsgZlU4ssWWsK-1) | ออกแบบ Wireframe (หน้าหลัก, รายการสินค้า, รายละเอียดสินค้า, ตะกร้า, Checkout/ชำระเงิน) ผ่าน Figma |
+| [Wireframe (Figma)](https://www.figma.com/design/tD4Ky3k96PDIJlJKNqx4En/Untitled?node-id=0-1&t=E7NM5Sl3AWCCfG5d-1) | ออกแบบ Wireframe (หน้าหลัก, รายการสินค้า, รายละเอียดสินค้า, ตะกร้า, Checkout/ชำระเงิน) ผ่าน Figma |
 
 ---
 
