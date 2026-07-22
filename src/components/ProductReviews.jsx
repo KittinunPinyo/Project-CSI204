@@ -4,11 +4,25 @@ import axios from 'axios';
 const ProductReviews = ({ productId }) => {
   const [reviews, setReviews] = useState([]);
   const [comment, setComment] = useState('');
+  
+  // 🌟 State สำหรับระบบดาว
   const [rating, setRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
+
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 🌟 State สำหรับป๊อปอัปแจ้งเตือน (Toast)
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3000);
+  };
 
   // ดึงข้อมูลรีวิว (ทั้งหมด) ดึงได้เลยไม่ต้องใช้ Token
   useEffect(() => {
@@ -23,6 +37,13 @@ const ProductReviews = ({ productId }) => {
     if (productId) fetchReviews();
   }, [productId]);
 
+  // ฟังก์ชันล้างรูปภาพที่เลือก
+  const handleClearImage = () => {
+    setImage(null);
+    setImagePreview(null);
+    document.getElementById('review-image-upload').value = '';
+  };
+
   // ฟังก์ชันส่งรีวิว (ต้องใช้ Token เพื่อระบุตัวตนลูกค้า)
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -30,7 +51,7 @@ const ProductReviews = ({ productId }) => {
     const token = localStorage.getItem('token');
     
     if (!token) {
-      alert('กรุณาเข้าสู่ระบบก่อนเขียนรีวิวครับ!');
+      showToast('กรุณาเข้าสู่ระบบก่อนเขียนรีวิวนะครับ!', 'error');
       return;
     }
 
@@ -54,283 +75,215 @@ const ProductReviews = ({ productId }) => {
       const response = await axios.get(`http://localhost:5000/api/reviews/product/${productId}`);
       setReviews(response.data);
       
+      showToast('ส่งรีวิวเรียบร้อยแล้ว ขอบคุณครับ!', 'success');
+      
       setComment('');
       setRating(5);
-      setImage(null);
-      setImagePreview(null);
+      setHoverRating(0);
+      handleClearImage();
     } catch (error) {
       console.error(error);
-      alert('เกิดข้อผิดพลาด หรือเซสชันของคุณหมดอายุ กรุณาล็อกอินใหม่');
+      showToast('เกิดข้อผิดพลาด หรือเซสชันของคุณหมดอายุ กรุณาล็อกอินใหม่', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{ width: '100%', marginTop: '36px' }}>
+    <div style={{ width: '100%', marginTop: '36px', position: 'relative' }}>
+      
+      {/* 🌟 ป๊อปอัปแจ้งเตือน (Toast) */}
+      <div style={{
+        position: 'fixed', top: toast.show ? '30px' : '-100px', left: '50%', transform: 'translateX(-50%)',
+        backgroundColor: toast.type === 'success' ? '#5C4E43' : '#b87373', color: '#ffffff',
+        padding: '14px 28px', borderRadius: '50px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+        transition: 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)', zIndex: 9999,
+        display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'bold', opacity: toast.show ? 1 : 0
+      }}>
+        <span style={{ fontSize: '18px' }}>{toast.type === 'success' ? '✅' : '⚠️'}</span>
+        {toast.message}
+      </div>
+
       {/* Header */}
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          cursor: 'pointer',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '12px 0',
-          borderBottom: '2px solid #e2e8f0',
-          transition: 'all 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderBottomColor = '#94a3b8';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderBottomColor = '#e2e8f0';
-        }}
+        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '2px solid #E8E1D9', transition: 'all 0.2s ease' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '22px' }}>⭐</span>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#1e293b' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: '#5C4E43' }}>
             รีวิวจากลูกค้า
-            <span style={{ 
-              display: 'inline-block',
-              marginLeft: '6px',
-              backgroundColor: '#3b82f6',
-              color: '#ffffff',
-              paddingLeft: '7px',
-              paddingRight: '7px',
-              borderRadius: '3px',
-              fontSize: '13px',
-              fontWeight: '600'
-            }}>
+            <span style={{ display: 'inline-block', marginLeft: '8px', backgroundColor: '#8C7A6B', color: '#ffffff', padding: '2px 10px', borderRadius: '50px', fontSize: '13px', fontWeight: 'bold' }}>
               {reviews.length}
             </span>
           </h3>
         </div>
-        <span style={{ fontSize: '16px', transition: 'transform 0.3s ease', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+        <span style={{ fontSize: '16px', color: '#8C7A6B', transition: 'transform 0.3s ease', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
           ▼
         </span>
       </div>
 
       {isOpen && (
-        <div style={{ paddingTop: '18px' }}>
-          {/* Form Section */}
-          <form onSubmit={handleSubmitReview} style={{
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: '11px',
-            padding: '20px',
-            marginBottom: '22px'
-          }}>
-            <h4 style={{ fontSize: '15px', fontWeight: '700', margin: '0 0 14px 0', color: '#1e293b' }}>
+        <div style={{ paddingTop: '24px' }}>
+          
+          {/* ==============================
+              ฟอร์มเขียนรีวิว
+              ============================== */}
+          <form onSubmit={handleSubmitReview} style={{ backgroundColor: '#ffffff', border: '1px solid #E8E1D9', borderRadius: '16px', padding: '24px', marginBottom: '32px', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+            <h4 style={{ fontSize: '16px', fontWeight: '900', margin: '0 0 20px 0', color: '#5C4E43' }}>
               ✍️ เขียนรีวิวของคุณ
             </h4>
             
-            {/* Rating Selector */}
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '10px', color: '#475569' }}>
-                เลือกคะแนน
+            {/* 🌟 ระบบให้คะแนนดาวแบบกดได้ */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: '#8C7A6B' }}>
+                ให้คะแนนสินค้า
               </label>
-              <select 
-                value={rating} 
-                onChange={(e) => setRating(Number(e.target.value))}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  backgroundColor: '#ffffff',
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#3b82f6';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#cbd5e1';
-                  e.target.style.boxShadow = 'none';
-                }}
-              >
-                <option value="5">⭐⭐⭐⭐⭐ 5 ดาว - ดีเยี่ยม</option>
-                <option value="4">⭐⭐⭐⭐ 4 ดาว - ดี</option>
-                <option value="3">⭐⭐⭐ 3 ดาว - ปานกลาง</option>
-                <option value="2">⭐⭐ 2 ดาว - พอใช้</option>
-                <option value="1">⭐ 1 ดาว - แย่</option>
-              </select>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span
+                    key={star}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    onClick={() => setRating(star)}
+                    style={{
+                      cursor: 'pointer',
+                      fontSize: '28px',
+                      lineHeight: '1',
+                      color: star <= (hoverRating || rating) ? '#f59e0b' : '#E8E1D9',
+                      transition: 'color 0.2s',
+                      userSelect: 'none'
+                    }}
+                  >
+                    ★
+                  </span>
+                ))}
+                <span style={{ marginLeft: '12px', fontSize: '13px', fontWeight: 'bold', color: '#8C7A6B' }}>
+                  {rating === 5 ? 'ดีเยี่ยม' : rating === 4 ? 'ดี' : rating === 3 ? 'ปานกลาง' : rating === 2 ? 'พอใช้' : 'ต้องปรับปรุง'}
+                </span>
+              </div>
             </div>
 
             {/* Comment Textarea */}
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '10px', color: '#475569' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: '#8C7A6B' }}>
                 ความเห็นของคุณ
               </label>
               <textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="แชร์ความรู้สึกที่มีต่อสินค้านี้..."
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontFamily: 'inherit',
-                  resize: 'vertical',
-                  minHeight: '88px',
-                  transition: 'all 0.2s ease'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#3b82f6';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#cbd5e1';
-                  e.target.style.boxShadow = 'none';
-                }}
+                style={{ width: '100%', padding: '14px', border: '1px solid #E8E1D9', borderRadius: '12px', fontSize: '14px', color: '#5C4E43', fontFamily: 'inherit', resize: 'vertical', minHeight: '100px', outline: 'none', transition: 'all 0.2s ease' }}
+                onFocus={(e) => { e.target.style.borderColor = '#8C7A6B'; }}
+                onBlur={(e) => { e.target.style.borderColor = '#E8E1D9'; }}
                 required
               />
             </div>
 
-            {/* Image Upload */}
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '10px', color: '#475569' }}>
+            {/* 🌟 Custom Image Upload */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: '#8C7A6B' }}>
                 แนบรูปภาพรีวิว (ถ้ามี)
               </label>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/jpg"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (!file) return;
-                  setImage(file);
-                  setImagePreview(URL.createObjectURL(file));
-                }}
-                style={{
-                  width: '100%',
-                  padding: '10px 10px 6px',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  backgroundColor: '#ffffff',
-                  fontSize: '13px',
-                  cursor: 'pointer'
-                }}
-              />
-              {imagePreview && (
-                <div style={{ marginTop: '10px' }}>
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                  />
-                </div>
-              )}
+              
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+                {/* ซ่อน input file ของจริง */}
+                <input
+                  type="file"
+                  id="review-image-upload"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    setImage(file);
+                    setImagePreview(URL.createObjectURL(file));
+                  }}
+                  style={{ display: 'none' }}
+                />
+                
+                {/* ปุ่มปลอมที่หน้าตาสวยงาม */}
+                <label
+                  htmlFor="review-image-upload"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 24px', backgroundColor: '#F0EBE6', color: '#5C4E43', borderRadius: '50px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', border: '1px solid #E8E1D9', transition: 'all 0.2s', margin: 0 }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#E8E1D9'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#F0EBE6'}
+                >
+                  📸 {image ? 'เปลี่ยนรูปภาพ' : 'แนบรูปภาพ'}
+                </label>
+
+                {/* พรีวิวรูปภาพ */}
+                {imagePreview && (
+                  <div style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '12px', border: '1px solid #E8E1D9', overflow: 'hidden' }}>
+                    <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button
+                      type="button"
+                      onClick={handleClearImage}
+                      style={{ position: 'absolute', top: '4px', right: '4px', width: '24px', height: '24px', backgroundColor: 'rgba(92, 78, 67, 0.8)', color: 'white', border: 'none', borderRadius: '50%', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Submit Button */}
             <button 
               type="submit"
               disabled={isSubmitting}
-              style={{
-                width: '100%',
-                padding: '11px',
-                backgroundColor: isSubmitting ? '#94a3b8' : '#000000',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '6px',
-                fontWeight: '600',
-                fontSize: '14px',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-              }}
-              onMouseEnter={(e) => {
-                if (!isSubmitting) {
-                  e.target.style.backgroundColor = '#1e293b';
-                  e.target.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isSubmitting) {
-                  e.target.style.backgroundColor = '#000000';
-                  e.target.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
-                }
-              }}
+              style={{ width: '100%', padding: '14px', backgroundColor: isSubmitting ? '#E8E1D9' : '#8C7A6B', color: isSubmitting ? '#8C7A6B' : '#ffffff', border: 'none', borderRadius: '50px', fontWeight: 'bold', fontSize: '15px', cursor: isSubmitting ? 'not-allowed' : 'pointer', transition: 'all 0.2s ease', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)' }}
+              onMouseEnter={(e) => { if (!isSubmitting) e.target.style.backgroundColor = '#5C4E43'; }}
+              onMouseLeave={(e) => { if (!isSubmitting) e.target.style.backgroundColor = '#8C7A6B'; }}
             >
-              {isSubmitting ? '⏳ กำลังส่ง...' : '📤 ส่งรีวิว'}
+              {isSubmitting ? '⏳ กำลังบันทึกรีวิว...' : 'ส่งรีวิว'}
             </button>
           </form>
 
-          {/* Reviews List */}
+          {/* ==============================
+              รายการรีวิว
+              ============================== */}
           <div>
             {reviews.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                padding: '36px 20px',
-                backgroundColor: '#f8fafc',
-                borderRadius: '10px',
-                border: '1px dashed #cbd5e1'
-              }}>
-                <span style={{ fontSize: '28px', display: 'block', marginBottom: '10px' }}>📭</span>
-                <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>ยังไม่มีรีวิวสำหรับสินค้านี้</p>
-                <p style={{ color: '#94a3b8', fontSize: '13px', margin: '8px 0 0 0' }}>เป็นคนแรกที่รีวิวสินค้านี้!</p>
+              <div style={{ textAlign: 'center', padding: '48px 20px', backgroundColor: '#F8F6F3', borderRadius: '16px', border: '1px dashed #E8E1D9' }}>
+                <span style={{ fontSize: '40px', display: 'block', marginBottom: '12px' }}>📭</span>
+                <p style={{ color: '#5C4E43', fontSize: '15px', fontWeight: 'bold', margin: 0 }}>ยังไม่มีรีวิวสำหรับสินค้านี้</p>
+                <p style={{ color: '#8C7A6B', fontSize: '13px', margin: '8px 0 0 0' }}>เป็นคนแรกที่รีวิวสินค้านี้เพื่อเป็นแนวทางให้เพื่อนๆ สิครับ!</p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gap: '14px' }}>
+              <div style={{ display: 'grid', gap: '16px' }}>
                 {reviews.map((review) => (
                   <div 
                     key={review.id}
-                    style={{
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      padding: '14px',
-                      transition: 'all 0.2s ease',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-                      e.currentTarget.style.borderColor = '#cbd5e1';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
-                      e.currentTarget.style.borderColor = '#e2e8f0';
-                    }}
+                    style={{ backgroundColor: '#ffffff', border: '1px solid #E8E1D9', borderRadius: '16px', padding: '20px', transition: 'all 0.2s ease', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.02)' }}
                   >
                     {/* Rating & Name & Date */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#f59e0b', letterSpacing: '1.5px' }}>
-                          {'★'.repeat(review.rating)}<span style={{ color: '#d1d5db' }}>{'★'.repeat(5 - review.rating)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '16px', color: '#f59e0b', letterSpacing: '2px' }}>
+                          {'★'.repeat(review.rating)}<span style={{ color: '#E8E1D9' }}>{'★'.repeat(5 - review.rating)}</span>
                         </span>
-                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>
+                        <span style={{ fontSize: '14px', fontWeight: '900', color: '#5C4E43' }}>
                           {review.user_name || 'Customer'}
                         </span>
                       </div>
-                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      <span style={{ fontSize: '12px', color: '#8C7A6B', fontWeight: 'bold' }}>
                         {new Date(review.created_at).toLocaleDateString('th-TH')}
                       </span>
                     </div>
 
                     {/* Comment */}
-                    <p style={{ 
-                      color: '#475569', 
-                      fontSize: '14px', 
-                      lineHeight: '1.5', 
-                      margin: 0,
-                      paddingLeft: '8px',
-                      borderLeft: '3px solid #e0e7ff'
-                    }}>
+                    <p style={{ color: '#5C4E43', fontSize: '14px', lineHeight: '1.6', margin: 0, paddingLeft: '12px', borderLeft: '3px solid #E8E1D9' }}>
                       {review.comment}
                     </p>
 
+                    {/* Image (If any) */}
                     {review.image && (
-                      <div style={{ marginTop: '14px', textAlign: 'center' }}>
+                      <div style={{ marginTop: '16px' }}>
                         <img
                           src={review.image.startsWith('http') ? review.image : `http://localhost:5000${review.image}`}
                           alt="Customer review"
-                          style={{ width: '100%', maxHeight: '260px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0' }}
+                          style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #E8E1D9', cursor: 'pointer' }}
+                          onClick={() => window.open(review.image.startsWith('http') ? review.image : `http://localhost:5000${review.image}`, '_blank')}
                         />
                       </div>
                     )}
@@ -339,6 +292,7 @@ const ProductReviews = ({ productId }) => {
               </div>
             )}
           </div>
+
         </div>
       )}
     </div>

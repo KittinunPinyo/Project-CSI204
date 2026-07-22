@@ -23,6 +23,16 @@ const ManagePromotions = () => {
     maximumOrderAmount: ''
   });
 
+  // 🌟 State สำหรับแจ้งเตือน (Toast) แทน alert()
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 3000);
+  };
+
   useEffect(() => {
     fetchPromotions();
   }, []);
@@ -37,7 +47,7 @@ const ManagePromotions = () => {
       setPromotions(response.data);
     } catch (error) {
       console.error('Error fetching promotions', error);
-      if (error.response?.status === 403) alert('คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (เฉพาะ Admin)');
+      if (error.response?.status === 403) showToast('คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (เฉพาะ Admin)', 'error');
     } finally {
       setLoading(false);
     }
@@ -65,7 +75,7 @@ const ManagePromotions = () => {
     e.preventDefault();
     
     if (!formData.code || !formData.description || !formData.discountValue) {
-      alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+      showToast('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
       return;
     }
 
@@ -75,10 +85,10 @@ const ManagePromotions = () => {
 
       if (editingId) {
         await axios.put(`http://localhost:5000/api/admin/promotions/${editingId}`, formData, config);
-        alert('แก้ไขโปรโมชั่นสำเร็จ');
+        showToast('แก้ไขโปรโมชั่นสำเร็จ', 'success');
       } else {
         await axios.post('http://localhost:5000/api/admin/promotions', formData, config);
-        alert('สร้างโปรโมชั่นสำเร็จ');
+        showToast('สร้างโปรโมชั่นสำเร็จ', 'success');
       }
 
       fetchPromotions();
@@ -86,7 +96,7 @@ const ManagePromotions = () => {
       resetForm();
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.error || 'เกิดข้อผิดพลาดในการบันทึก');
+      showToast(error.response?.data?.error || 'เกิดข้อผิดพลาดในการบันทึก', 'error');
     }
   };
 
@@ -117,10 +127,10 @@ const ManagePromotions = () => {
       await axios.delete(`http://localhost:5000/api/admin/promotions/${promoId}`, config);
       setPromotions(promotions.filter(p => p.id !== promoId));
       setDeleteId(null);
-      alert('ลบโปรโมชั่นสำเร็จ');
+      showToast('ลบโปรโมชั่นสำเร็จ', 'success');
     } catch (error) {
       console.error(error);
-      alert('เกิดข้อผิดพลาดในการลบ');
+      showToast('เกิดข้อผิดพลาดในการลบ', 'error');
     }
   };
 
@@ -128,630 +138,248 @@ const ManagePromotions = () => {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <div style={{ fontSize: '24px', marginBottom: '16px' }}>⏳</div>
-        <p style={{ color: '#64748b', fontWeight: '500' }}>กำลังโหลดข้อมูลโปรโมชั่น...</p>
+        <p style={{ color: '#8C7A6B', fontWeight: 'bold' }}>กำลังโหลดข้อมูลโปรโมชั่น...</p>
       </div>
     );
   }
 
   return (
-    <div style={{ width: '100%' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '24px' }}>🎉</span>
-            <h2 style={{ fontSize: '24px', fontWeight: '900', margin: 0, letterSpacing: '0.5px' }}>
-              จัดการโปรโมชั่น
-            </h2>
-          </div>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowForm(!showForm);
-            }}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: showForm ? '#ef4444' : '#3b82f6',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.opacity = '0.9';
-              e.target.style.transform = 'scale(1.02)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.opacity = '1';
-              e.target.style.transform = 'scale(1)';
-            }}
-          >
-            {showForm ? '✕ ยกเลิก' : '➕ เพิ่มโปรโมชั่น'}
-          </button>
-        </div>
-        <p style={{ color: '#64748b', margin: '8px 0 0 0', fontSize: '14px' }}>
-          จำนวนโปรโมชั่น: <span style={{ fontWeight: 'bold', color: '#1e293b' }}>{promotions.length}</span> รายการ
-        </p>
+    <div style={{ width: '100%', position: 'relative' }}>
+      
+      {/* 🌟 ป๊อปอัปแจ้งเตือน (Toast) */}
+      <div style={{
+        position: 'fixed', top: toast.show ? '30px' : '-100px', left: '50%', transform: 'translateX(-50%)',
+        backgroundColor: toast.type === 'success' ? '#5C4E43' : '#b87373', color: '#ffffff',
+        padding: '14px 28px', borderRadius: '50px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+        transition: 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)', zIndex: 9999,
+        display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'bold', opacity: toast.show ? 1 : 0
+      }}>
+        <span style={{ fontSize: '18px' }}>{toast.type === 'success' ? '✅' : '⚠️'}</span>
+        {toast.message}
       </div>
 
-      {/* Form */}
-      {showForm && (
-        <div style={{
-          backgroundColor: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderRadius: '11px',
-          padding: '20px',
-          marginBottom: '28px'
-        }}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 16px 0', color: '#1e293b' }}>
-            {editingId ? '✏️ แก้ไขโปรโมชั่น' : '✍️ สร้างโปรโมชั่นใหม่'}
-          </h3>
-          
-          <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              {/* Code */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  รหัสโปรโมชั่น
-                </label>
-                <input
-                  type="text"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                  placeholder="เช่น SAVE20"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit'
-                  }}
-                  disabled={editingId ? true : false}
-                />
+      <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #E8E1D9', padding: '32px', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+        
+        {/* Header Section */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+          <div>
+            <h3 style={{ margin: '0 0 8px 0', color: '#5C4E43', fontSize: '22px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>🎉</span> จัดการโปรโมชั่น
+            </h3>
+            <p style={{ margin: 0, color: '#8C7A6B', fontSize: '14px', fontWeight: 'bold' }}>
+              จำนวนโปรโมชั่น: <span style={{ color: '#5C4E43' }}>{promotions.length} รายการ</span>
+            </p>
+          </div>
+          <button
+            onClick={() => { resetForm(); setShowForm(true); }}
+            style={{ padding: '10px 24px', backgroundColor: '#8C7A6B', color: '#ffffff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#5C4E43'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#8C7A6B'}
+          >
+            <span style={{ fontSize: '16px' }}>+</span> เพิ่มโปรโมชั่น
+          </button>
+        </div>
+
+        {/* Promotions List */}
+        {promotions.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 0', backgroundColor: '#F8F6F3', borderRadius: '12px', border: '1px dashed #E8E1D9' }}>
+            <span style={{ fontSize: '40px', display: 'block', marginBottom: '16px' }}>📭</span>
+            <p style={{ color: '#8C7A6B', fontWeight: 'bold', margin: 0 }}>ยังไม่มีโปรโมชั่นในระบบ</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {promotions.map((promo) => (
+              <div key={promo.id} style={{ border: '1px solid #E8E1D9', borderRadius: '12px', padding: '20px', backgroundColor: '#ffffff', transition: 'all 0.2s ease', boxShadow: '0 2px 4px rgba(0,0,0,0.01)' }}>
+                
+                {/* ข้อมูลหลัก 3 คอลัมน์ */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '20px', marginBottom: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8C7A6B', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>รหัส</div>
+                    <div style={{ fontSize: '16px', color: '#5C4E43', fontWeight: '900', letterSpacing: '0.5px' }}>{promo.code}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8C7A6B', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>รายละเอียด</div>
+                    <div style={{ fontSize: '14px', color: '#5C4E43', fontWeight: '600' }}>{promo.description}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8C7A6B', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>ส่วนลด</div>
+                    <div style={{ fontSize: '16px', color: '#d97777', fontWeight: '900' }}>
+                      {promo.discount_type === 'percentage' ? `${promo.discount_value}%` : `฿${Number(promo.discount_value).toLocaleString('th-TH')}`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* แถบข้อมูลรอง (พื้นหลังครีม) */}
+                <div style={{ backgroundColor: '#F8F6F3', borderRadius: '8px', padding: '12px 16px', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8C7A6B', fontWeight: 'bold', marginBottom: '2px' }}>สถานะ</div>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', color: promo.is_active ? '#6D8C7A' : '#d97777' }}>
+                      {promo.is_active ? '✅ เปิดใช้งาน' : '❌ ปิดใช้งาน'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8C7A6B', fontWeight: 'bold', marginBottom: '2px' }}>ขั้นต่ำ / สูงสุด</div>
+                    <div style={{ fontSize: '12px', color: '#5C4E43', fontWeight: 'bold' }}>
+                      {promo.minimum_order_amount ? `฿${promo.minimum_order_amount}` : '0'} / {promo.maximum_order_amount ? `฿${promo.maximum_order_amount}` : '∞'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8C7A6B', fontWeight: 'bold', marginBottom: '2px' }}>ลดได้สูงสุด</div>
+                    <div style={{ fontSize: '12px', color: '#6D8C7A', fontWeight: 'bold' }}>
+                      {promo.max_discount ? `฿${Number(promo.max_discount).toLocaleString('th-TH')}` : 'ไม่จำกัด'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8C7A6B', fontWeight: 'bold', marginBottom: '2px' }}>การใช้งาน</div>
+                    <div style={{ fontSize: '12px', color: '#5C4E43', fontWeight: 'bold' }}>
+                      {promo.current_uses || 0} / {promo.max_uses || 'ไม่จำกัด'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#8C7A6B', fontWeight: 'bold', marginBottom: '2px' }}>วันสิ้นสุด</div>
+                    <div style={{ fontSize: '12px', color: '#5C4E43', fontWeight: 'bold' }}>
+                      {promo.end_date ? new Date(promo.end_date).toLocaleDateString('th-TH') : 'ไม่มีกำหนด'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                  <button 
+                    onClick={() => handleEdit(promo)}
+                    style={{ padding: '6px 16px', backgroundColor: '#8C7A6B', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <span>✏️</span> แก้ไข
+                  </button>
+                  <button 
+                    onClick={() => setDeleteId(promo.id)}
+                    style={{ padding: '6px 16px', backgroundColor: '#d97777', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <span>🗑️</span> ลบ
+                  </button>
+                </div>
+
               </div>
-
-              {/* Discount Type */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  ประเภทส่วนลด
-                </label>
-                <select
-                  value={formData.discountType}
-                  onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit',
-                    backgroundColor: '#ffffff'
-                  }}
-                >
-                  <option value="percentage">เปอร์เซ็นต์ (%)</option>
-                  <option value="fixed">จำนวนเงินคงที่ (บาท)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                รายละเอียด
-              </label>
-              <input
-                type="text"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="เช่น ลด 20% สำหรับซื้อรองเท้าทั้งหมด"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontFamily: 'inherit'
-                }}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              {/* Discount Value */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  ค่าส่วนลด
-                </label>
-                <input
-                  type="number"
-                  value={formData.discountValue}
-                  onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
-                  placeholder="0"
-                  step="0.01"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              {/* Max Discount */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  ลดได้ไม่เกิน (บาท)
-                </label>
-                <input
-                  type="number"
-                  value={formData.maxDiscount}
-                  onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
-                  placeholder="ไม่มีขีดจำกัด"
-                  step="0.01"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              {/* Max Uses */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  จำนวนครั้งที่ใช้ได้
-                </label>
-                <input
-                  type="number"
-                  value={formData.maxUses}
-                  onChange={(e) => setFormData({ ...formData, maxUses: e.target.value })}
-                  placeholder="ไม่จำกัด"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              {/* Minimum Order Amount */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  ยอดสั่งซื้อขั้นต่ำ (บาท)
-                </label>
-                <input
-                  type="number"
-                  value={formData.minimumOrderAmount}
-                  onChange={(e) => setFormData({ ...formData, minimumOrderAmount: e.target.value })}
-                  placeholder="ไม่มีขีดจำกัด"
-                  step="0.01"
-                  min="0"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              {/* Maximum Order Amount */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  ยอดสั่งซื้อสูงสุด (บาท)
-                </label>
-                <input
-                  type="number"
-                  value={formData.maximumOrderAmount}
-                  onChange={(e) => setFormData({ ...formData, maximumOrderAmount: e.target.value })}
-                  placeholder="ไม่มีขีดจำกัด"
-                  step="0.01"
-                  min="0"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              {/* Start Date */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  วันเริ่มต้น
-                </label>
-                <input
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              {/* End Date */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  วันสิ้นสุด (ไม่บังคับ)
-                </label>
-                <input
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              {/* Active Status */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#475569' }}>
-                  สถานะ
-                </label>
-                <select
-                  value={formData.isActive ? 'active' : 'inactive'}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'active' })}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit',
-                    backgroundColor: '#ffffff'
-                  }}
-                >
-                  <option value="active">✅ ใช้งาน</option>
-                  <option value="inactive">⛔ ปิดใช้งาน</option>
-                </select>
-              </div>
-
-              {/* Flash Sale */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#475569' }}>
-                  <input
-                    type="checkbox"
-                    checked={formData.isFlashSale}
-                    onChange={(e) => setFormData({ ...formData, isFlashSale: e.target.checked })}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <span>Flash Sale</span>
-                </label>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                }}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#e2e8f0',
-                  color: '#475569',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="submit"
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#3b82f6',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                {editingId ? '💾 บันทึกการแก้ไข' : '➕ สร้างโปรโมชั่น'}
-              </button>
-            </div>
-          </form>
+            ))}
           </div>
         )}
+      </div>
 
-      {promotions.length === 0 ? (
-        <div style={{
-          backgroundColor: '#f8fafc',
-          border: '2px dashed #cbd5e1',
-          borderRadius: '12px',
-          padding: '56px 28px',
-          textAlign: 'center'
-        }}>
-          <span style={{ fontSize: '44px', display: 'block', marginBottom: '14px' }}>🎁</span>
-          <p style={{ color: '#64748b', fontSize: '15px', margin: 0 }}>ยังไม่มีโปรโมชั่น</p>
-          <p style={{ color: '#94a3b8', fontSize: '14px', margin: '8px 0 0 0' }}>ลองคลิกปุ่ม "เพิ่มโปรโมชั่น" เพื่อสร้างโปรโมชั่นใหม่</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gap: '18px' }}>
-          {promotions.map((promo) => (
-            <div 
-              key={promo.id}
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '10px',
-                padding: '18px',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
-                e.currentTarget.style.borderColor = '#cbd5e1';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
-                e.currentTarget.style.borderColor = '#e2e8f0';
-              }}
-            >
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '12px' }}>
-                {/* Code */}
-                <div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    รหัส
-                  </div>
-                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', marginTop: '6px', fontFamily: 'monospace', letterSpacing: '1px' }}>
-                    {promo.code}
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    รายละเอียด
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#1e293b', marginTop: '6px' }}>
-                    {promo.description}
-                  </div>
-                </div>
-
-                {/* Discount */}
-                <div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    ส่วนลด
-                  </div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#059669', marginTop: '6px' }}>
-                    {promo.discount_type === 'percentage' 
-                      ? `${promo.discount_value}%` 
-                      : `฿${Number(promo.discount_value).toLocaleString('th-TH')}`}
-                  </div>
-                </div>
-              </div>
-
-              {/* Status & Uses */}
-              <div style={{
-                backgroundColor: '#f8fafc',
-                padding: '12px',
-                borderRadius: '6px',
-                marginBottom: '12px',
-                borderLeft: '4px solid #3b82f6',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                gap: '12px'
-              }}>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>สถานะ</div>
-                  <div style={{ fontSize: '13px', color: '#1e293b', marginTop: '4px' }}>
-                    {promo.is_active ? '✅ ใช้งาน' : '⛔ ปิดใช้งาน'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>ลดได้สูงสุด</div>
-                  <div style={{ fontSize: '13px', color: '#059669', marginTop: '4px', fontWeight: '600' }}>
-                    {promo.max_discount ? `฿${Number(promo.max_discount).toLocaleString('th-TH')}` : 'ไม่มีขีดจำกัด'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>การใช้งาน</div>
-                  <div style={{ fontSize: '13px', color: '#1e293b', marginTop: '4px' }}>
-                    {promo.max_uses 
-                      ? `${promo.current_uses} / ${promo.max_uses}`
-                      : `${promo.current_uses} / ไม่จำกัด`}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>วันสิ้นสุด</div>
-                  <div style={{ fontSize: '13px', color: '#1e293b', marginTop: '4px' }}>
-                    {promo.end_date ? new Date(promo.end_date).toLocaleDateString('th-TH') : 'ไม่มี'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => handleEdit(promo)}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#3b82f6',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#2563eb';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#3b82f6';
-                  }}
-                >
-                  ✏️ แก้ไข
-                </button>
-                <button
-                  onClick={() => setDeleteId(promo.id)}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#ef4444',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#dc2626';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#ef4444';
-                  }}
-                >
-                  🗑️ ลบ
-                </button>
-              </div>
+      {/* ==========================================
+          Modal: เพิ่ม/แก้ไขโปรโมชั่น
+          ========================================== */}
+      {showForm && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(92, 78, 67, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '20px' }}>
+          <div style={{ backgroundColor: '#ffffff', width: '100%', maxWidth: '700px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', borderRadius: '24px', border: '1px solid #E8E1D9', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+            
+            <div style={{ padding: '20px 32px', borderBottom: '1px solid #E8E1D9', backgroundColor: '#ffffff', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '900', margin: 0, color: '#5C4E43' }}>{editingId ? '📝 แก้ไขโปรโมชั่น' : '✨ เพิ่มโปรโมชั่นใหม่'}</h3>
+              <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#8C7A6B' }}>✕</button>
             </div>
-          ))}
+
+            <div style={{ padding: '24px 32px', overflowY: 'auto', flex: 1 }}>
+              <form id="promoForm" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>รหัสโปรโมชั่น</label>
+                    <input type="text" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })} disabled={!!editingId} required placeholder="เช่น SUMMER20" style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px', textTransform: 'uppercase' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>ประเภทส่วนลด</label>
+                    <select value={formData.discountType} onChange={(e) => setFormData({ ...formData, discountType: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px', backgroundColor: '#ffffff' }}>
+                      <option value="percentage">ลดเป็นเปอร์เซ็นต์ (%)</option>
+                      <option value="fixed">ลดเป็นจำนวนเงิน (฿)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>รายละเอียดโปรโมชั่น</label>
+                  <input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} required placeholder="เช่น ลด 20% สำหรับซื้อรองเท้าทั้งหมด" style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px' }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>ค่าส่วนลด</label>
+                    <input type="number" value={formData.discountValue} onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })} required step="0.01" style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>ลดได้สูงสุด (฿)</label>
+                    <input type="number" value={formData.maxDiscount} onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })} placeholder="ไม่จำกัด" step="0.01" style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>จำนวนสิทธิ์ใช้งาน</label>
+                    <input type="number" value={formData.maxUses} onChange={(e) => setFormData({ ...formData, maxUses: e.target.value })} placeholder="ไม่จำกัด" style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>ยอดสั่งซื้อขั้นต่ำ (฿)</label>
+                    <input type="number" value={formData.minimumOrderAmount} onChange={(e) => setFormData({ ...formData, minimumOrderAmount: e.target.value })} placeholder="ไม่มีขั้นต่ำ" step="0.01" style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>ยอดสั่งซื้อสูงสุด (฿)</label>
+                    <input type="number" value={formData.maximumOrderAmount} onChange={(e) => setFormData({ ...formData, maximumOrderAmount: e.target.value })} placeholder="ไม่จำกัด" step="0.01" style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>วันที่เริ่ม</label>
+                    <input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#8C7A6B', marginBottom: '6px' }}>วันสิ้นสุด</label>
+                    <input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} style={{ width: '100%', padding: '12px 16px', border: '1px solid #E8E1D9', borderRadius: '12px', outline: 'none', color: '#5C4E43', fontSize: '14px' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={formData.isFlashSale} onChange={(e) => setFormData({ ...formData, isFlashSale: e.target.checked })} style={{ width: '18px', height: '18px', accentColor: '#8C7A6B' }} />
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#5C4E43' }}>เปิด Flash Sale</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} style={{ width: '18px', height: '18px', accentColor: '#6D8C7A' }} />
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#5C4E43' }}>เปิดใช้งานโค้ดนี้</span>
+                  </label>
+                </div>
+
+              </form>
+            </div>
+
+            <div style={{ padding: '20px 32px', borderTop: '1px solid #E8E1D9', backgroundColor: '#F8F6F3', display: 'flex', gap: '12px' }}>
+              <button type="button" onClick={() => setShowForm(false)} style={{ flex: 1, padding: '14px', border: '1px solid #8C7A6B', color: '#8C7A6B', backgroundColor: '#ffffff', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
+                ยกเลิก
+              </button>
+              <button type="submit" form="promoForm" style={{ flex: 1, padding: '14px', border: 'none', backgroundColor: '#8C7A6B', color: '#ffffff', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
+                {editingId ? 'บันทึกการเปลี่ยนแปลง' : 'ยืนยันการเพิ่มโปรโมชั่น'}
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* ==========================================
+          Modal: ยืนยันการลบ
+          ========================================== */}
       {deleteId && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          padding: '16px'
-        }}>
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '14px',
-            border: '1px solid #e2e8f0',
-            padding: '32px',
-            maxWidth: '420px',
-            width: '100%',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15)',
-            animation: 'slideUp 0.3s ease'
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <span style={{ fontSize: '48px', display: 'block', marginBottom: '14px' }}>⚠️</span>
-              <h3 style={{ fontSize: '18px', fontWeight: '900', margin: '0 0 12px 0', color: '#1e293b' }}>
-                ยืนยันการลบโปรโมชั่น
-              </h3>
-              <p style={{ color: '#64748b', fontSize: '14px', margin: '0', lineHeight: '1.5' }}>
-                คุณแน่ใจที่ต้องการลบโปรโมชั่นนี้หรือไม่? การกระทำนี้ไม่สามารถยกเลิกได้
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => setDeleteId(null)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  color: '#475569',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#f1f5f9';
-                  e.target.style.borderColor = '#94a3b8';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#ffffff';
-                  e.target.style.borderColor = '#cbd5e1';
-                }}
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={() => handleDelete(deleteId)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  border: 'none',
-                  backgroundColor: '#ef4444',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  color: '#ffffff',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 8px rgba(239, 68, 68, 0.2)'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#dc2626';
-                  e.target.style.boxShadow = '0 6px 12px rgba(239, 68, 68, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#ef4444';
-                  e.target.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.2)';
-                }}
-              >
-                ลบ
-              </button>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(92, 78, 67, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ backgroundColor: '#ffffff', width: '100%', maxWidth: '400px', borderRadius: '24px', border: '1px solid #E8E1D9', padding: '32px', textAlign: 'center', boxShadow: '0 10px 30px rgba(92, 78, 67, 0.15)' }}>
+            <span style={{ fontSize: '32px', display: 'block', marginBottom: '16px' }}>⚠️</span>
+            <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 12px 0', color: '#5C4E43' }}>ยืนยันลบโปรโมชั่น</h3>
+            <p style={{ fontSize: '14px', color: '#8C7A6B', lineHeight: '1.5', margin: '0 0 24px 0' }}>แน่ใจใช่หรือไม่ที่จะลบโปรโมชั่นนี้? การกระทำนี้ไม่สามารถยกเลิกได้</p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: '14px', border: '1px solid #8C7A6B', color: '#8C7A6B', backgroundColor: '#ffffff', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={() => handleDelete(deleteId)} style={{ flex: 1, padding: '14px', border: 'none', backgroundColor: '#d97777', color: '#ffffff', borderRadius: '50px', fontWeight: 'bold', cursor: 'pointer' }}>ลบถาวร</button>
             </div>
           </div>
         </div>
       )}
 
-      <style>{`
-        @keyframes slideUp {
-          from {
-            transform: translateY(20px);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-      `}</style>
     </div>
   );
 };
