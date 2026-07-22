@@ -104,6 +104,9 @@ node server.js
 npm install
 npm run dev
 
+### 3. ส่วน deployments
+ระบบอาจจะไปไม่ครบทุกฟังก์ชั่นเกิดจากการ deployments ขึ้น Github
+
 ---
 
 ## เอกสารประกอบโครงงาน
@@ -119,6 +122,7 @@ npm run dev
 ## 📞 ติดต่อ | Contact
  
 **GitHub:** [KittinunPinyo](https://github.com/KittinunPinyo)
+**LINE:** [0954762497](0954762497)
 
 ---
 
